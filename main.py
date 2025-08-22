@@ -119,10 +119,10 @@ def main():
     parser.add_argument('root_dir', help='Корневая директория проекта для сканирования')
     parser.add_argument('-o', '--output', default='project_structure.txt', 
                        help='Имя выходного файла (по умолчанию: project_structure.txt)')
-    parser.add_argument('--exclude-dirs', nargs='+', default=[], 
-                       help='Директории для исключения из сканирования')
-    parser.add_argument('--exclude-files', nargs='+', default=[], 
-                       help='Файлы для исключения содержимого (только имена)')
+    parser.add_argument('-ed', '--exclude-dirs', nargs='+', default=[], 
+                    help='Директории для исключения из сканирования')
+    parser.add_argument('-ef', '--exclude-files', nargs='+', default=[], 
+                    help='Файлы для исключения содержимого (только имена)')
     parser.add_argument('-v', '--version', action='version', version='TreeSnake 1.0')
     
     args = parser.parse_args()
