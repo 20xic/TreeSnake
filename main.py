@@ -7,35 +7,38 @@ TreeSnake
 import os
 import argparse
 import sys
+import fnmatch
 
-def should_skip(path, exclude_dirs, exclude_files):
+def should_skip(path, exclude_dirs, exclude_patterns):
     """Проверяет, нужно ли пропустить файл или директорию"""
     # Проверяем исключения директорий
     for excl_dir in exclude_dirs:
         if excl_dir in path.split(os.sep):
             return True
     
-    # Проверяем исключения файлов
+    # Проверяем исключения файлов с поддержкой шаблонов
     if os.path.isfile(path):
         filename = os.path.basename(path)
-        if filename in exclude_files:
-            return True
+        # Проверяем соответствие шаблонам
+        for pattern in exclude_patterns:
+            if fnmatch.fnmatch(filename, pattern):
+                return True
     
     return False
 
-def scan_project(root_dir, exclude_dirs=None, exclude_files=None):
+def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None):
     """Сканирует проект и возвращает его структуру с содержимым"""
     if exclude_dirs is None:
         exclude_dirs = []
-    if exclude_files is None:
-        exclude_files = []
+    if exclude_patterns is None:
+        exclude_patterns = []
     
     result = []
     root_dir = os.path.normpath(root_dir)
     
     for current_dir, dirs, files in os.walk(root_dir):
         # Фильтрация исключенных директорий
-        dirs[:] = [d for d in dirs if not should_skip(os.path.join(current_dir, d), exclude_dirs, exclude_files)]
+        dirs[:] = [d for d in dirs if not should_skip(os.path.join(current_dir, d), exclude_dirs, exclude_patterns)]
         
         # Получаем относительный путь
         rel_path = os.path.relpath(current_dir, root_dir)
@@ -55,7 +58,7 @@ def scan_project(root_dir, exclude_dirs=None, exclude_files=None):
         # Обрабатываем файлы
         for file in files:
             file_path = os.path.join(current_dir, file)
-            if should_skip(file_path, exclude_dirs, exclude_files):
+            if should_skip(file_path, exclude_dirs, exclude_patterns):
                 continue
                 
             # Отображаем файлы с соответствующим уровнем вложенности
@@ -64,38 +67,37 @@ def scan_project(root_dir, exclude_dirs=None, exclude_files=None):
             else:
                 result.append(f"{'│   ' * level}├── {file}")
             
-            # Читаем содержимое файла если он не в исключениях
-            if file not in exclude_files:
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                    # Добавляем разделитель и содержимое
+            # Читаем содержимое файла если он не соответствует шаблонам исключения
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                # Добавляем разделитель и содержимое
+                if level == 0:
+                    result.append("│   └── CONTENT:")
+                else:
+                    result.append(f"{'│   ' * (level+1)}└── CONTENT:")
+                
+                # Добавляем содержимое с отступом
+                for line in content.split('\n'):
                     if level == 0:
-                        result.append("│   └── CONTENT:")
+                        result.append(f"│       {line}")
                     else:
-                        result.append(f"{'│   ' * (level+1)}└── CONTENT:")
-                    
-                    # Добавляем содержимое с отступом
-                    for line in content.split('\n'):
-                        if level == 0:
-                            result.append(f"│       {line}")
-                        else:
-                            result.append(f"{'│   ' * (level+1)}    {line}")
-                    
-                    if level == 0:
-                        result.append("│")
-                    else:
-                        result.append(f"{'│   ' * (level+1)}")
-                except UnicodeDecodeError:
-                    if level == 0:
-                        result.append("│   └── [Бинарный файл - содержимое пропущено]")
-                    else:
-                        result.append(f"{'│   ' * (level+1)}└── [Бинарный файл - содержимое пропущено]")
-                except Exception as e:
-                    if level == 0:
-                        result.append(f"│   └── [Ошибка чтения файла: {str(e)}]")
-                    else:
-                        result.append(f"{'│   ' * (level+1)}└── [Ошибка чтения файла: {str(e)}]")
+                        result.append(f"{'│   ' * (level+1)}    {line}")
+                
+                if level == 0:
+                    result.append("│")
+                else:
+                    result.append(f"{'│   ' * (level+1)}")
+            except UnicodeDecodeError:
+                if level == 0:
+                    result.append("│   └── [Бинарный файл - содержимое пропущено]")
+                else:
+                    result.append(f"{'│   ' * (level+1)}└── [Бинарный файл - содержимое пропущено]")
+            except Exception as e:
+                if level == 0:
+                    result.append(f"│   └── [Ошибка чтения файла: {str(e)}]")
+                else:
+                    result.append(f"{'│   ' * (level+1)}└── [Ошибка чтения файла: {str(e)}]")
     
     return '\n'.join(result)
 
@@ -107,7 +109,7 @@ def main():
 Примеры использования:
   TreeSnake /path/to/project
   TreeSnake /path/to/project -o output.txt
-  TreeSnake /path/to/project --exclude-dirs venv __pycache__ --exclude-files .gitignore
+  TreeSnake /path/to/project --exclude-dirs venv __pycache__ --exclude-files .gitignore *.pyc
 
 Символы иерархии:
   ├── - элемент на уровне
@@ -120,9 +122,9 @@ def main():
     parser.add_argument('-o', '--output', default='project_structure.txt', 
                        help='Имя выходного файла (по умолчанию: project_structure.txt)')
     parser.add_argument('-ed', '--exclude-dirs', nargs='+', default=[], 
-                    help='Директории для исключения из сканирования')
+                       help='Директории для исключения из сканирования')
     parser.add_argument('-ef', '--exclude-files', nargs='+', default=[], 
-                    help='Файлы для исключения содержимого (только имена)')
+                       help='Файлы и шаблоны для исключения (например: .gitignore *.txt *.md)')
     parser.add_argument('-v', '--version', action='version', version='TreeSnake 1.0')
     
     args = parser.parse_args()
