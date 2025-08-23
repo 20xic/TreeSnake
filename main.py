@@ -36,22 +36,31 @@ def read_file_content(file_path):
     except Exception as e:
         return None, f"[Ошибка чтения файла: {str(e)}]"
 
-def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_only=False):
+def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_only=False, exclude_content_dirs=None):
     """Сканирует проект и возвращает его структуру с содержимым"""
     if exclude_dirs is None:
         exclude_dirs = []
     if exclude_patterns is None:
         exclude_patterns = []
+    if exclude_content_dirs is None:
+        exclude_content_dirs = []
     
     result = []
     root_dir = os.path.normpath(root_dir)
     
     for current_dir, dirs, files in os.walk(root_dir):
+        # Проверяем, нужно ли исключить содержимое текущей директории
+        skip_content = False
+        rel_path = os.path.relpath(current_dir, root_dir)
+        for excl_content_dir in exclude_content_dirs:
+            if rel_path.startswith(excl_content_dir) or excl_content_dir in current_dir.split(os.sep):
+                skip_content = True
+                break
+        
         # Фильтрация исключенных директорий
         dirs[:] = [d for d in dirs if not should_skip(os.path.join(current_dir, d), exclude_dirs, exclude_patterns)]
         
         # Получаем относительный путь
-        rel_path = os.path.relpath(current_dir, root_dir)
         if rel_path == '.':
             level = 0
         else:
@@ -64,6 +73,17 @@ def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_o
                 result.append(f"├── {os.path.basename(current_dir)}/")
             else:
                 result.append(f"{'│   ' * (level-1)}├── {os.path.basename(current_dir)}/")
+        
+        # Если нужно пропустить содержимое директории, добавляем отметку и пропускаем файлы
+        if skip_content:
+            if level == 0:
+                result.append("└── [СОДЕРЖИМОЕ ДИРЕКТОРИИ ИСКЛЮЧЕНО]")
+            else:
+                result.append(f"{'│   ' * level}└── [СОДЕРЖИМОЕ ДИРЕКТОРИИ ИСКЛЮЧЕНО]")
+            # Очищаем списки, чтобы не обрабатывать вложенные элементы
+            dirs[:] = []
+            files = []
+            continue
         
         # Обрабатываем файлы
         for file in files:
@@ -148,6 +168,7 @@ def main():
   TreeSnake /path/to/project --exclude-dirs venv __pycache__ --exclude-files .gitignore *.pyc
   TreeSnake /path/to/project -s  # Только структура без содержимого
   TreeSnake /path/to/project --extra-files config.json README.md  # Добавить дополнительные файлы
+  TreeSnake /path/to/project --exclude-content-dirs node_modules dist  # Исключить содержимое директорий
 
 Символы иерархии:
   ├── - элемент на уровне
@@ -165,8 +186,10 @@ def main():
                        help='Файлы и шаблоны для исключения (например: .gitignore *.txt *.md)')
     parser.add_argument('-s', '--structure-only', action='store_true',
                        help='Выводить только структуру без содержимого файлов')
-    parser.add_argument('-xf', '--extra-files', nargs='+', default=[],
+    parser.add_argument('-xf','--extra-files', nargs='+', default=[],
                        help='Дополнительные файлы для включения в отчет (вне структуры проекта)')
+    parser.add_argument('-ecd', '--exclude-content-dirs', nargs='+', default=[],
+                       help='Директории, содержимое которых нужно исключить (только структура)')
     parser.add_argument('-v', '--version', action='version', version='TreeSnake 0.0.2')
     
     args = parser.parse_args()
@@ -186,7 +209,13 @@ def main():
         print("Продолжение работы без этих файлов...")
     
     print("TreeSnake: Сканирование проекта...")
-    content = scan_project(args.root_dir, args.exclude_dirs, args.exclude_files, args.structure_only)
+    content = scan_project(
+        args.root_dir, 
+        args.exclude_dirs, 
+        args.exclude_files, 
+        args.structure_only,
+        args.exclude_content_dirs
+    )
     
     # Добавляем дополнительные файлы, если указаны
     if args.extra_files:
@@ -198,6 +227,8 @@ def main():
     header += "Режим: " + ("только структура" if args.structure_only else "полный") + "\n"
     if args.extra_files:
         header += f"Дополнительные файлы: {', '.join(args.extra_files)}\n"
+    if args.exclude_content_dirs:
+        header += f"Директории с исключенным содержимым: {', '.join(args.exclude_content_dirs)}\n"
     header += "=" * 60 + "\n\n"
     content = header + content
     
