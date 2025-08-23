@@ -26,6 +26,16 @@ def should_skip(path, exclude_dirs, exclude_patterns):
     
     return False
 
+def read_file_content(file_path):
+    """Читает содержимое файла с обработкой ошибок"""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return f.read(), None
+    except UnicodeDecodeError:
+        return None, "[Бинарный файл - содержимое пропущено]"
+    except Exception as e:
+        return None, f"[Ошибка чтения файла: {str(e)}]"
+
 def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_only=False):
     """Сканирует проект и возвращает его структуру с содержимым"""
     if exclude_dirs is None:
@@ -69,9 +79,14 @@ def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_o
             
             # Если не в режиме только структуры, читаем содержимое файла
             if not structure_only:
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
+                content, error = read_file_content(file_path)
+                
+                if error:
+                    if level == 0:
+                        result.append(f"│   └── {error}")
+                    else:
+                        result.append(f"{'│   ' * (level+1)}└── {error}")
+                else:
                     # Добавляем разделитель и содержимое
                     if level == 0:
                         result.append("│   └── CONTENT:")
@@ -89,16 +104,36 @@ def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_o
                         result.append("│")
                     else:
                         result.append(f"{'│   ' * (level+1)}")
-                except UnicodeDecodeError:
-                    if level == 0:
-                        result.append("│   └── [Бинарный файл - содержимое пропущено]")
-                    else:
-                        result.append(f"{'│   ' * (level+1)}└── [Бинарный файл - содержимое пропущено]")
-                except Exception as e:
-                    if level == 0:
-                        result.append(f"│   └── [Ошибка чтения файла: {str(e)}]")
-                    else:
-                        result.append(f"{'│   ' * (level+1)}└── [Ошибка чтения файла: {str(e)}]")
+    
+    return '\n'.join(result)
+
+def add_extra_files(extra_files, structure_only=False):
+    """Добавляет дополнительные файлы вне структуры проекта"""
+    if not extra_files:
+        return ""
+    
+    result = ["\n\nДОПОЛНИТЕЛЬНЫЕ ФАЙЛЫ:"]
+    result.append("=" * 40)
+    
+    for file_path in extra_files:
+        if not os.path.isfile(file_path):
+            result.append(f"\n{file_path} - [Файл не найден]")
+            continue
+            
+        result.append(f"\n├── {os.path.basename(file_path)} ({file_path})")
+        
+        if not structure_only:
+            content, error = read_file_content(file_path)
+            
+            if error:
+                result.append(f"│   └── {error}")
+            else:
+                result.append("│   └── CONTENT:")
+                for line in content.split('\n'):
+                    result.append(f"│       {line}")
+                result.append("│")
+        else:
+            result.append("│   └── [Содержимое пропущено в режиме только структуры]")
     
     return '\n'.join(result)
 
@@ -112,6 +147,7 @@ def main():
   TreeSnake /path/to/project -o output.txt
   TreeSnake /path/to/project --exclude-dirs venv __pycache__ --exclude-files .gitignore *.pyc
   TreeSnake /path/to/project -s  # Только структура без содержимого
+  TreeSnake /path/to/project --extra-files config.json README.md  # Добавить дополнительные файлы
 
 Символы иерархии:
   ├── - элемент на уровне
@@ -129,7 +165,9 @@ def main():
                        help='Файлы и шаблоны для исключения (например: .gitignore *.txt *.md)')
     parser.add_argument('-s', '--structure-only', action='store_true',
                        help='Выводить только структуру без содержимого файлов')
-    parser.add_argument('-v', '--version', action='version', version='TreeSnake 1.0')
+    parser.add_argument('-xf', '--extra-files', nargs='+', default=[],
+                       help='Дополнительные файлы для включения в отчет (вне структуры проекта)')
+    parser.add_argument('-v', '--version', action='version', version='TreeSnake 0.0.2')
     
     args = parser.parse_args()
     
@@ -137,11 +175,29 @@ def main():
         print(f"Ошибка: Директория '{args.root_dir}' не существует!")
         sys.exit(1)
     
+    # Проверяем существование дополнительных файлов
+    missing_files = []
+    for file_path in args.extra_files:
+        if not os.path.isfile(file_path):
+            missing_files.append(file_path)
+    
+    if missing_files:
+        print(f"Предупреждение: следующие дополнительные файлы не найдены: {', '.join(missing_files)}")
+        print("Продолжение работы без этих файлов...")
+    
     print("TreeSnake: Сканирование проекта...")
     content = scan_project(args.root_dir, args.exclude_dirs, args.exclude_files, args.structure_only)
     
+    # Добавляем дополнительные файлы, если указаны
+    if args.extra_files:
+        extra_content = add_extra_files(args.extra_files, args.structure_only)
+        content += extra_content
+    
     # Добавляем заголовок
     header = f"Структура проекта: {args.root_dir}\n"
+    header += "Режим: " + ("только структура" if args.structure_only else "полный") + "\n"
+    if args.extra_files:
+        header += f"Дополнительные файлы: {', '.join(args.extra_files)}\n"
     header += "=" * 60 + "\n\n"
     content = header + content
     
