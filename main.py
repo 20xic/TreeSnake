@@ -26,7 +26,7 @@ def should_skip(path, exclude_dirs, exclude_patterns):
     
     return False
 
-def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None):
+def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_only=False):
     """Сканирует проект и возвращает его структуру с содержимым"""
     if exclude_dirs is None:
         exclude_dirs = []
@@ -67,37 +67,38 @@ def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None):
             else:
                 result.append(f"{'│   ' * level}├── {file}")
             
-            # Читаем содержимое файла если он не соответствует шаблонам исключения
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                # Добавляем разделитель и содержимое
-                if level == 0:
-                    result.append("│   └── CONTENT:")
-                else:
-                    result.append(f"{'│   ' * (level+1)}└── CONTENT:")
-                
-                # Добавляем содержимое с отступом
-                for line in content.split('\n'):
+            # Если не в режиме только структуры, читаем содержимое файла
+            if not structure_only:
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    # Добавляем разделитель и содержимое
                     if level == 0:
-                        result.append(f"│       {line}")
+                        result.append("│   └── CONTENT:")
                     else:
-                        result.append(f"{'│   ' * (level+1)}    {line}")
-                
-                if level == 0:
-                    result.append("│")
-                else:
-                    result.append(f"{'│   ' * (level+1)}")
-            except UnicodeDecodeError:
-                if level == 0:
-                    result.append("│   └── [Бинарный файл - содержимое пропущено]")
-                else:
-                    result.append(f"{'│   ' * (level+1)}└── [Бинарный файл - содержимое пропущено]")
-            except Exception as e:
-                if level == 0:
-                    result.append(f"│   └── [Ошибка чтения файла: {str(e)}]")
-                else:
-                    result.append(f"{'│   ' * (level+1)}└── [Ошибка чтения файла: {str(e)}]")
+                        result.append(f"{'│   ' * (level+1)}└── CONTENT:")
+                    
+                    # Добавляем содержимое с отступом
+                    for line in content.split('\n'):
+                        if level == 0:
+                            result.append(f"│       {line}")
+                        else:
+                            result.append(f"{'│   ' * (level+1)}    {line}")
+                    
+                    if level == 0:
+                        result.append("│")
+                    else:
+                        result.append(f"{'│   ' * (level+1)}")
+                except UnicodeDecodeError:
+                    if level == 0:
+                        result.append("│   └── [Бинарный файл - содержимое пропущено]")
+                    else:
+                        result.append(f"{'│   ' * (level+1)}└── [Бинарный файл - содержимое пропущено]")
+                except Exception as e:
+                    if level == 0:
+                        result.append(f"│   └── [Ошибка чтения файла: {str(e)}]")
+                    else:
+                        result.append(f"{'│   ' * (level+1)}└── [Ошибка чтения файла: {str(e)}]")
     
     return '\n'.join(result)
 
@@ -110,6 +111,7 @@ def main():
   TreeSnake /path/to/project
   TreeSnake /path/to/project -o output.txt
   TreeSnake /path/to/project --exclude-dirs venv __pycache__ --exclude-files .gitignore *.pyc
+  TreeSnake /path/to/project -s  # Только структура без содержимого
 
 Символы иерархии:
   ├── - элемент на уровне
@@ -125,6 +127,8 @@ def main():
                        help='Директории для исключения из сканирования')
     parser.add_argument('-ef', '--exclude-files', nargs='+', default=[], 
                        help='Файлы и шаблоны для исключения (например: .gitignore *.txt *.md)')
+    parser.add_argument('-s', '--structure-only', action='store_true',
+                       help='Выводить только структуру без содержимого файлов')
     parser.add_argument('-v', '--version', action='version', version='TreeSnake 1.0')
     
     args = parser.parse_args()
@@ -134,7 +138,7 @@ def main():
         sys.exit(1)
     
     print("TreeSnake: Сканирование проекта...")
-    content = scan_project(args.root_dir, args.exclude_dirs, args.exclude_files)
+    content = scan_project(args.root_dir, args.exclude_dirs, args.exclude_files, args.structure_only)
     
     # Добавляем заголовок
     header = f"Структура проекта: {args.root_dir}\n"
