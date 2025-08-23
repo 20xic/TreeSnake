@@ -26,6 +26,18 @@ def should_skip(path, exclude_dirs, exclude_patterns):
     
     return False
 
+def should_exclude_content(file_path, exclude_content_patterns):
+    """Проверяет, нужно ли исключить содержимое файла"""
+    if not exclude_content_patterns:
+        return False
+        
+    filename = os.path.basename(file_path)
+    for pattern in exclude_content_patterns:
+        if fnmatch.fnmatch(filename, pattern):
+            return True
+    
+    return False
+
 def read_file_content(file_path):
     """Читает содержимое файла с обработкой ошибок"""
     try:
@@ -36,7 +48,8 @@ def read_file_content(file_path):
     except Exception as e:
         return None, f"[Ошибка чтения файла: {str(e)}]"
 
-def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_only=False, exclude_content_dirs=None):
+def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_only=False, 
+                 exclude_content_dirs=None, exclude_content_patterns=None):
     """Сканирует проект и возвращает его структуру с содержимым"""
     if exclude_dirs is None:
         exclude_dirs = []
@@ -44,6 +57,8 @@ def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_o
         exclude_patterns = []
     if exclude_content_dirs is None:
         exclude_content_dirs = []
+    if exclude_content_patterns is None:
+        exclude_content_patterns = []
     
     result = []
     root_dir = os.path.normpath(root_dir)
@@ -97,8 +112,11 @@ def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_o
             else:
                 result.append(f"{'│   ' * level}├── {file}")
             
-            # Если не в режиме только структуры, читаем содержимое файла
-            if not structure_only:
+            # Проверяем, нужно ли исключить содержимое этого файла
+            skip_file_content = should_exclude_content(file_path, exclude_content_patterns)
+            
+            # Если не в режиме только структуры и не нужно исключать содержимое файла, читаем содержимое
+            if not structure_only and not skip_file_content:
                 content, error = read_file_content(file_path)
                 
                 if error:
@@ -124,13 +142,22 @@ def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_o
                         result.append("│")
                     else:
                         result.append(f"{'│   ' * (level+1)}")
+            else:
+                # Добавляем сообщение о пропущенном содержимом
+                if level == 0:
+                    result.append("│   └── [СОДЕРЖИМОЕ ФАЙЛА ИСКЛЮЧЕНО]")
+                else:
+                    result.append(f"{'│   ' * (level+1)}└── [СОДЕРЖИМОЕ ФАЙЛА ИСКЛЮЧЕНО]")
     
     return '\n'.join(result)
 
-def add_extra_files(extra_files, structure_only=False):
+def add_extra_files(extra_files, structure_only=False, exclude_content_patterns=None):
     """Добавляет дополнительные файлы вне структуры проекта"""
     if not extra_files:
         return ""
+    
+    if exclude_content_patterns is None:
+        exclude_content_patterns = []
     
     result = ["\n\nДОПОЛНИТЕЛЬНЫЕ ФАЙЛЫ:"]
     result.append("=" * 40)
@@ -140,9 +167,12 @@ def add_extra_files(extra_files, structure_only=False):
             result.append(f"\n{file_path} - [Файл не найден]")
             continue
             
+        # Проверяем, нужно ли исключить содержимое этого дополнительного файла
+        skip_content = should_exclude_content(file_path, exclude_content_patterns)
+            
         result.append(f"\n├── {os.path.basename(file_path)} ({file_path})")
         
-        if not structure_only:
+        if not structure_only and not skip_content:
             content, error = read_file_content(file_path)
             
             if error:
@@ -153,7 +183,7 @@ def add_extra_files(extra_files, structure_only=False):
                     result.append(f"│       {line}")
                 result.append("│")
         else:
-            result.append("│   └── [Содержимое пропущено в режиме только структуры]")
+            result.append("│   └── [Содержимое пропущено]")
     
     return '\n'.join(result)
 
@@ -169,6 +199,7 @@ def main():
   TreeSnake /path/to/project -s  # Только структура без содержимого
   TreeSnake /path/to/project --extra-files config.json README.md  # Добавить дополнительные файлы
   TreeSnake /path/to/project --exclude-content-dirs node_modules dist  # Исключить содержимое директорий
+  TreeSnake /path/to/project --exclude-content-files *.txt *.md  # Исключить содержимое файлов по шаблону
 
 Символы иерархии:
   ├── - элемент на уровне
@@ -190,6 +221,8 @@ def main():
                        help='Дополнительные файлы для включения в отчет (вне структуры проекта)')
     parser.add_argument('-ecd', '--exclude-content-dirs', nargs='+', default=[],
                        help='Директории, содержимое которых нужно исключить (только структура)')
+    parser.add_argument('-ecf', '--exclude-content-files', nargs='+', default=[],
+                       help='Файлы и шаблоны, содержимое которых нужно исключить (например: *.txt *.md)')
     parser.add_argument('-v', '--version', action='version', version='TreeSnake 0.0.2')
     
     args = parser.parse_args()
@@ -214,21 +247,23 @@ def main():
         args.exclude_dirs, 
         args.exclude_files, 
         args.structure_only,
-        args.exclude_content_dirs
+        args.exclude_content_dirs,
+        args.exclude_content_files
     )
     
     # Добавляем дополнительные файлы, если указаны
     if args.extra_files:
-        extra_content = add_extra_files(args.extra_files, args.structure_only)
+        extra_content = add_extra_files(args.extra_files, args.structure_only, args.exclude_content_files)
         content += extra_content
     
     # Добавляем заголовок
     header = f"Структура проекта: {args.root_dir}\n"
-    header += "Режим: " + ("только структура" if args.structure_only else "полный") + "\n"
     if args.extra_files:
         header += f"Дополнительные файлы: {', '.join(args.extra_files)}\n"
     if args.exclude_content_dirs:
         header += f"Директории с исключенным содержимым: {', '.join(args.exclude_content_dirs)}\n"
+    if args.exclude_content_files:
+        header += f"Файлы с исключенным содержимым: {', '.join(args.exclude_content_files)}\n"
     header += "=" * 60 + "\n\n"
     content = header + content
     
