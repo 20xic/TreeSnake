@@ -1,8 +1,7 @@
 # TreeSnake
 
-**TreeSnake** — утилита для сканирования и документирования структуры Python-проектов с сохранением содержимого файлов. Название сочетает идею древовидной структуры (Tree) и Python (Snake).
-
-**TreeSnake** — A utility for scanning and documenting Python project structure while preserving file contents. The name combines the idea of a tree structure (Tree) and Python (Snake).
+**TreeSnake** — утилита для сканирования и документирования структуры проектов с сохранением содержимого файлов.
+**TreeSnake** — A utility for scanning and documenting project structure while preserving file contents.
 
 ## Назначение / Purpose
 
@@ -56,9 +55,13 @@ python treesnake.py /path/to/your/project
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
 | `root_dir`                   | Корневая директория проекта / Project root directory (required)                     | -                                      |
 | `-o, --output`               | Имя выходного файла / Output filename                                                       | `project_structure.txt`                |
-| `--exclude-dirs`             | Список директорий для исключения / Directories to exclude                       | Пустой список / Empty list |
-| `--exclude-files`            | Список файлов для исключения содержимого / Files to exclude content from | Пустой список / Empty list |
-| `-v, --version`              | Показать версию утилиты / Show utility version                                          | -                                      |
+| `-ed, --exclude-dirs`             | Список директорий для исключения / Directories to exclude                       | Пустой список / Empty list |
+| `-ef, --exclude-files`            | Список файлов для исключения содержимого / Files to exclude content from | Пустой список / Empty list |
+|`-s, --structure-only`| Выводить только структуру без содержимого файлов/ Show project structure only    | Пустой список / Empty list
+|`-xf, --extra-files`| Дополнительные файлы для включения в отчет (вне структуры проекта)| Пустой список / Empty list
+|`-ecd, --exclude-content-dirs`| Директории, содержимое которых нужно исключить (только структура)| Пустой список / Empty list
+|`-ecf, --exclude-content-files`| Файлы и шаблоны, содержимое которых нужно исключить (например: *.txt *.md)| Пустой список / Empty list
+| `-v, --version`              | Показать версию утилиты / Show utility version                                          | -|
 
 
 #### Пример вывода / Example Output
