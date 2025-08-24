@@ -24,8 +24,10 @@
 git clone https://github.com/yourusername/treesnake.git
 cd treesnake
 ```
-2. Утилита не требует дополнительных зависимостей, только Python 3.6+
-
+2. Установите зависимости
+```
+pip install -r requirements
+```
 
 
 1. Clone the repository:
@@ -33,7 +35,10 @@ cd treesnake
 git clone https://github.com/yourusername/treesnake.git
 cd treesnake
 ```
-2. The utility has no additional dependencies, only Python 3.6+
+2. Install dependencies
+```
+pip install -r requirements
+```
 
 ## Сборка / Build
 ```
