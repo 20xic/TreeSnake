@@ -8,6 +8,7 @@ import os
 import argparse
 import sys
 import fnmatch
+import pyperclip
 
 def should_skip(path, exclude_dirs, exclude_patterns):
     """Проверяет, нужно ли пропустить файл или директорию"""
@@ -290,6 +291,16 @@ def add_extra_files_llm(extra_files, structure_only=False, exclude_content_patte
     
     return '\n'.join(result)
 
+def copy_to_clipboard(content):
+    """Копирует содержимое в буфер обмена"""
+    try:
+        pyperclip.copy(content)
+        print("Содержимое скопировано в буфер обмена!")
+    except Exception as e:
+        print(f"Ошибка при копировании в буфер обмена: {str(e)}")
+        print("Убедитесь, что у вас установлены необходимые зависимости для работы с буфером обмена")
+        sys.exit(1)
+
 def main():
     parser = argparse.ArgumentParser(
         description='TreeSnake- Утилита для сканирования структуры проектов',
@@ -297,7 +308,7 @@ def main():
         epilog="""
 Примеры использования:
   TreeSnake /path/to/project
-  TreeSnake /path/to/project -o output.txt
+  TreeSnake /path/to/project -f output.txt
   TreeSnake /path/to/project --exclude-dirs venv __pycache__ --exclude-files .gitignore *.pyc
   TreeSnake /path/to/project -s  # Только структура без содержимого
   TreeSnake /path/to/project --extra-files config.json README.md  # Добавить дополнительные файлы
@@ -313,8 +324,8 @@ def main():
     )
     
     parser.add_argument('root_dir', help='Корневая директория проекта для сканирования')
-    parser.add_argument('-o', '--output', default='project_structure.txt', 
-                       help='Имя выходного файла (по умолчанию: project_structure.txt)')
+    parser.add_argument('-f', '--file', dest='output_file', 
+                       help='Имя выходного файла (если не указано, вывод в буфер обмена)')
     parser.add_argument('-ed', '--exclude-dirs', nargs='+', default=[], 
                        help='Директории для исключения из сканирования')
     parser.add_argument('-ef', '--exclude-files', nargs='+', default=[], 
@@ -329,7 +340,7 @@ def main():
                        help='Файлы и шаблоны, содержимое которых нужно исключить (например: *.txt *.md)')
     parser.add_argument('-lm','--llm-mode', action='store_true',
                        help='Режим для LLM с экономией токенов')
-    parser.add_argument('-v', '--version', action='version', version='TreeSnake 0.0.3')
+    parser.add_argument('-v', '--version', action='version', version='TreeSnake 0.0.4')
     
     args = parser.parse_args()
     
@@ -390,15 +401,20 @@ def main():
         header += "=" * 60 + "\n\n"
         content = header + content
     
-    try:
-        with open(args.output, 'w', encoding='utf-8') as f:
-            f.write(content)
-        
-        print(f"Структура проекта сохранена в файл: {args.output}")
-        print(f"Размер выходного файла: {os.path.getsize(args.output)} байт")
-    except Exception as e:
-        print(f"Ошибка при записи файла: {str(e)}")
-        sys.exit(1)
+    # Определяем куда выводить результат
+    if args.output_file:
+        try:
+            with open(args.output_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            print(f"Структура проекта сохранена в файл: {args.output_file}")
+            print(f"Размер выходного файла: {os.path.getsize(args.output_file)} байт")
+        except Exception as e:
+            print(f"Ошибка при записи файла: {str(e)}")
+            sys.exit(1)
+    else:
+        # Копируем в буфер обмена по умолчанию
+        copy_to_clipboard(content)
 
 if __name__ == "__main__":
     main()
