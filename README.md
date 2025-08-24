@@ -35,6 +35,12 @@ cd treesnake
 ```
 2. The utility has no additional dependencies, only Python 3.6+
 
+## Сборка / Build
+```
+pip install -r requirements.txt
+pyinstaller --onefile --console --name treesnake main.py
+```
+
 ## Использование / Usage
 
 #### Базовое использование / Basic usage
