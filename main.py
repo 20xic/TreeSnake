@@ -44,9 +44,9 @@ def read_file_content(file_path):
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read(), None
     except UnicodeDecodeError:
-        return None, "[Бинарный файл - содержимое пропущено]"
+        return None, "[Бинарный файл]"
     except Exception as e:
-        return None, f"[Ошибка чтения файла: {str(e)}]"
+        return None, f"[Ошибка: {str(e)}]"
 
 def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_only=False, 
                  exclude_content_dirs=None, exclude_content_patterns=None):
@@ -151,6 +151,78 @@ def scan_project(root_dir, exclude_dirs=None, exclude_patterns=None, structure_o
     
     return '\n'.join(result)
 
+def scan_project_llm(root_dir, exclude_dirs=None, exclude_patterns=None, structure_only=False,
+                    exclude_content_dirs=None, exclude_content_patterns=None):
+    """Сканирует проект и возвращает структуру в формате для LLM"""
+    if exclude_dirs is None:
+        exclude_dirs = []
+    if exclude_patterns is None:
+        exclude_patterns = []
+    if exclude_content_dirs is None:
+        exclude_content_dirs = []
+    if exclude_content_patterns is None:
+        exclude_content_patterns = []
+    
+    result = []
+    root_dir = os.path.normpath(root_dir)
+    
+    for current_dir, dirs, files in os.walk(root_dir):
+        # Проверяем, нужно ли исключить содержимое текущей директории
+        skip_content = False
+        rel_path = os.path.relpath(current_dir, root_dir)
+        for excl_content_dir in exclude_content_dirs:
+            if rel_path.startswith(excl_content_dir) or excl_content_dir in current_dir.split(os.sep):
+                skip_content = True
+                break
+        
+        # Фильтрация исключенных директорий
+        dirs[:] = [d for d in dirs if not should_skip(os.path.join(current_dir, d), exclude_dirs, exclude_patterns)]
+        
+        # Получаем относительный путь
+        if rel_path == '.':
+            level = 0
+        else:
+            level = len(rel_path.split(os.sep))
+        
+        # Добавляем запись для текущей директории
+        indent = '  ' * level
+        if level > 0:
+            result.append(f"{indent}{os.path.basename(current_dir)}/")
+        else:
+            result.append(f"{os.path.basename(current_dir)}/")
+        
+        # Если нужно пропустить содержимое директории, пропускаем файлы
+        if skip_content:
+            dirs[:] = []
+            files = []
+            continue
+        
+        # Обрабатываем файлы
+        for file in files:
+            file_path = os.path.join(current_dir, file)
+            if should_skip(file_path, exclude_dirs, exclude_patterns):
+                continue
+                
+            # Отображаем файлы с соответствующим уровнем вложенности
+            file_indent = '  ' * (level + 1)
+            result.append(f"{file_indent}{file}")
+            
+            # Проверяем, нужно ли исключить содержимое этого файла
+            skip_file_content = should_exclude_content(file_path, exclude_content_patterns)
+            
+            # Если не в режиме только структуры и не нужно исключать содержимое файла, читаем содержимое
+            if not structure_only and not skip_file_content:
+                content, error = read_file_content(file_path)
+                
+                if error:
+                    result.append(f"{file_indent}  {error}")
+                else:
+                    # Добавляем содержимое с отступом
+                    for line in content.split('\n'):
+                        result.append(f"{file_indent}  {line}")
+    
+    return '\n'.join(result)
+
 def add_extra_files(extra_files, structure_only=False, exclude_content_patterns=None):
     """Добавляет дополнительные файлы вне структуры проекта"""
     if not extra_files:
@@ -187,6 +259,37 @@ def add_extra_files(extra_files, structure_only=False, exclude_content_patterns=
     
     return '\n'.join(result)
 
+def add_extra_files_llm(extra_files, structure_only=False, exclude_content_patterns=None):
+    """Добавляет дополнительные файлы в формате для LLM"""
+    if not extra_files:
+        return ""
+    
+    if exclude_content_patterns is None:
+        exclude_content_patterns = []
+    
+    result = ["\nExtra files:"]
+    
+    for file_path in extra_files:
+        if not os.path.isfile(file_path):
+            result.append(f"{file_path} [not found]")
+            continue
+            
+        # Проверяем, нужно ли исключить содержимое этого дополнительного файла
+        skip_content = should_exclude_content(file_path, exclude_content_patterns)
+            
+        result.append(f"{os.path.basename(file_path)}")
+        
+        if not structure_only and not skip_content:
+            content, error = read_file_content(file_path)
+            
+            if error:
+                result.append(f"  {error}")
+            else:
+                for line in content.split('\n'):
+                    result.append(f"  {line}")
+    
+    return '\n'.join(result)
+
 def main():
     parser = argparse.ArgumentParser(
         description='TreeSnake- Утилита для сканирования структуры проектов',
@@ -200,6 +303,7 @@ def main():
   TreeSnake /path/to/project --extra-files config.json README.md  # Добавить дополнительные файлы
   TreeSnake /path/to/project --exclude-content-dirs node_modules dist  # Исключить содержимое директорий
   TreeSnake /path/to/project --exclude-content-files *.txt *.md  # Исключить содержимое файлов по шаблону
+  TreeSnake /path/to/project --llm-mode  # Режим для LLM с экономией токенов
 
 Символы иерархии:
   ├── - элемент на уровне
@@ -223,7 +327,9 @@ def main():
                        help='Директории, содержимое которых нужно исключить (только структура)')
     parser.add_argument('-ecf', '--exclude-content-files', nargs='+', default=[],
                        help='Файлы и шаблоны, содержимое которых нужно исключить (например: *.txt *.md)')
-    parser.add_argument('-v', '--version', action='version', version='TreeSnake 0.0.2')
+    parser.add_argument('-lm','--llm-mode', action='store_true',
+                       help='Режим для LLM с экономией токенов')
+    parser.add_argument('-v', '--version', action='version', version='TreeSnake 0.0.3')
     
     args = parser.parse_args()
     
@@ -242,30 +348,47 @@ def main():
         print("Продолжение работы без этих файлов...")
     
     print("TreeSnake: Сканирование проекта...")
-    content = scan_project(
-        args.root_dir, 
-        args.exclude_dirs, 
-        args.exclude_files, 
-        args.structure_only,
-        args.exclude_content_dirs,
-        args.exclude_content_files
-    )
     
-    # Добавляем дополнительные файлы, если указаны
-    if args.extra_files:
-        extra_content = add_extra_files(args.extra_files, args.structure_only, args.exclude_content_files)
-        content += extra_content
-    
-    # Добавляем заголовок
-    header = f"Структура проекта: {args.root_dir}\n"
-    if args.extra_files:
-        header += f"Дополнительные файлы: {', '.join(args.extra_files)}\n"
-    if args.exclude_content_dirs:
-        header += f"Директории с исключенным содержимым: {', '.join(args.exclude_content_dirs)}\n"
-    if args.exclude_content_files:
-        header += f"Файлы с исключенным содержимым: {', '.join(args.exclude_content_files)}\n"
-    header += "=" * 60 + "\n\n"
-    content = header + content
+    # Выбираем функцию для сканирования в зависимости от режима
+    if args.llm_mode:
+        content = scan_project_llm(
+            args.root_dir, 
+            args.exclude_dirs, 
+            args.exclude_files, 
+            args.structure_only,
+            args.exclude_content_dirs,
+            args.exclude_content_files
+        )
+        
+        # Добавляем дополнительные файлы в LLM-формате
+        if args.extra_files:
+            extra_content = add_extra_files_llm(args.extra_files, args.structure_only, args.exclude_content_files)
+            content += extra_content
+    else:
+        content = scan_project(
+            args.root_dir, 
+            args.exclude_dirs, 
+            args.exclude_files, 
+            args.structure_only,
+            args.exclude_content_dirs,
+            args.exclude_content_files
+        )
+        
+        # Добавляем дополнительные файлы в обычном формате
+        if args.extra_files:
+            extra_content = add_extra_files(args.extra_files, args.structure_only, args.exclude_content_files)
+            content += extra_content
+        
+        # Добавляем заголовок только для обычного режима
+        header = f"Структура проекта: {args.root_dir}\n"
+        if args.extra_files:
+            header += f"Дополнительные файлы: {', '.join(args.extra_files)}\n"
+        if args.exclude_content_dirs:
+            header += f"Директории с исключенным содержимым: {', '.join(args.exclude_content_dirs)}\n"
+        if args.exclude_content_files:
+            header += f"Файлы с исключенным содержимым: {', '.join(args.exclude_content_files)}\n"
+        header += "=" * 60 + "\n\n"
+        content = header + content
     
     try:
         with open(args.output, 'w', encoding='utf-8') as f:
