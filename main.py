@@ -10,6 +10,35 @@ import sys
 import fnmatch
 import pyperclip
 
+# ASCII-арт для отображения
+ASCII_ART = r"""
+                                  -
+                                 :@:   .
+                                 -@..=**:
+              -+*****+=:         +@%%+.
+            =%@%+%@@@@@@%:      .%@#.
+          :@@@@@#@@@##@@@@.    :@@+
+           -+++++-:.  +@@@=   =@@=
+                    .+@@@@:  =@@:    :
+                 .=#@@@@#.  =@@: :+##+
+               -#@@@@%+:   =@@*=%%*:
+              *@@@%=.     +@@@@#-
+             +@@@*       .@@@@+-***+-.
+             *@@@-     ..+@@@+=@@@@@@@#.
+             :@@@@#+==##-@@@# :...:+@@@@.
+              .*@@@@@@@:*@@@-       *@@@-
+                 :=+++=.@@@#       :%@@@:
+              .:::...  :###+    .-*@@@@=
+           :*%@@@@@@@@@%##****#%@@@@@#.
+          +@@@@#++++*#%@@@@@@@@@@%#=.
+         =@@@*.       +++=-----:.
+         +@@@.       *@@@-
+         .%@@@*=-== =@@@*
+           =#@@@%*:+@@@@.=*-.  .:
+              ...-%@@@@@:.%@@@@@*
+                :==----=- .-===:
+"""
+
 def should_skip(path, exclude_dirs, exclude_patterns):
     """Проверяет, нужно ли пропустить файл или директорию"""
     # Проверяем исключения директорий
@@ -302,6 +331,12 @@ def copy_to_clipboard(content):
         sys.exit(1)
 
 def main():
+    # Проверяем, есть ли аргументы командной строки
+    if len(sys.argv) == 1:
+        # Если нет аргументов, выводим ASCII-арт
+        print(ASCII_ART)
+        sys.exit(0)
+    
     parser = argparse.ArgumentParser(
         description='TreeSnake- Утилита для сканирования структуры проектов',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -323,7 +358,7 @@ def main():
         """
     )
     
-    parser.add_argument('root_dir', help='Корневая директория проекта для сканирования')
+    parser.add_argument('root_dir', nargs='?', help='Корневая директория проекта для сканирования')
     parser.add_argument('-f', '--file', dest='output_file', 
                        help='Имя выходного файла (если не указано, вывод в буфер обмена)')
     parser.add_argument('-ed', '--exclude-dirs', nargs='+', default=[], 
@@ -340,9 +375,21 @@ def main():
                        help='Файлы и шаблоны, содержимое которых нужно исключить (например: *.txt *.md)')
     parser.add_argument('-lm','--llm-mode', action='store_true',
                        help='Режим для LLM с экономией токенов')
-    parser.add_argument('-v', '--version', action='version', version='TreeSnake 0.0.4')
+    parser.add_argument('-v', '--version', action='store_true', help='Показать версию программы')
     
     args = parser.parse_args()
+    
+    # Обработка флага версии
+    if args.version:
+        print(ASCII_ART)
+        print("TreeSnake 0.0.5")
+        sys.exit(0)
+    
+    # Проверка наличия обязательного аргумента root_dir
+    if args.root_dir is None:
+        print("Ошибка: Не указана корневая директория проекта!")
+        print("Используйте TreeSnake --help для просмотра справки")
+        sys.exit(1)
     
     if not os.path.isdir(args.root_dir):
         print(f"Ошибка: Директория '{args.root_dir}' не существует!")
