@@ -85,7 +85,7 @@ def main():
     
     if args.version:
         print(ASCII_ART)
-        print("TreeSnake 0.1.0")
+        print(5*"\t"+" v0.1.1")
         sys.exit(0)
     
     # Обработка команд шаблонов
