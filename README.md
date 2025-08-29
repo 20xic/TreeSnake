@@ -43,7 +43,7 @@ pip install -r requirements
 ## Сборка / Build
 ```
 pip install -r requirements.txt
-pyinstaller --onefile --console --name treesnake main.py
+pyinstaller --onefile --name treesnake --hidden-import pyperclip main.py
 ```
 
 ## Использование / Usage
