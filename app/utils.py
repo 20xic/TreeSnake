@@ -47,3 +47,18 @@ def copy_to_clipboard(content):
         print(f"Ошибка при копировании в буфер обмена: {str(e)}")
         print("Убедитесь, что у вас установлены необходимые зависимости для работы с буфером обмена")
         raise
+
+def create_empty_file(file_path, content=""):
+    """Создает пустой файл"""
+    try:
+        # Создаем директории если их нет
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        print(f"Файл создан: {file_path}")
+        return True
+    except Exception as e:
+        print(f"Ошибка при создании файла {file_path}: {str(e)}")
+        return False

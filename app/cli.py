@@ -4,7 +4,7 @@ import sys
 from .constants import ASCII_ART
 from .scanner import scan_project, scan_project_llm
 from .formatters import add_extra_files, add_extra_files_llm
-from .utils import copy_to_clipboard
+from .utils import copy_to_clipboard, create_empty_file
 from .templates import TemplateManager
 
 def main():
@@ -31,6 +31,8 @@ def main():
   TreeSnake --list-templates  # Показать все шаблоны
   TreeSnake --set-default-template my_template  # Установить шаблон по умолчанию
   TreeSnake --delete-template my_template  # Удалить шаблон
+  TreeSnake -cf new.txt /path/to/project  # Создать файл и просканировать проект
+  TreeSnake -cf new.txt  # Создать файл в текущей директории
 
 Символы иерархии:
   ├── - элемент на уровне
@@ -80,12 +82,16 @@ def main():
     parser.add_argument('--list-templates', action='store_true', help='Показать все шаблоны')
     parser.add_argument('--delete-template', help='Удалить шаблон с указанным именем')
     parser.add_argument('--set-default-template', help='Установить шаблон по умолчанию')
+
+    # аргумент для создания файла
+    parser.add_argument('-cf', '--create-file', dest='create_file', metavar='FILEPATH',
+                       help='Создать пустой файл по указанному пути')
     
     args = parser.parse_args()
     
     if args.version:
         print(ASCII_ART)
-        print(5*"\t"+" v0.1.1")
+        print(5*"\t"+" v0.1.2")
         sys.exit(0)
     
     # Обработка команд шаблонов
@@ -133,6 +139,42 @@ def main():
         else:
             print(f"Шаблон '{args.set_default_template}' не найден!")
         sys.exit(0)
+    
+    # ОБРАБОТКА СОЗДАНИЯ ФАЙЛА (ДОЛЖНА БЫТЬ ДО ПРОВЕРКИ root_dir)
+    if args.create_file:
+        # Определяем базовую директорию для создания файла
+        if args.root_dir:
+            # Если указана корневая директория, создаем файл в ней
+            base_dir = args.root_dir
+            # Проверяем, существует ли директория
+            if not os.path.isdir(base_dir):
+                print(f"Ошибка: Директория '{base_dir}' не существует!")
+                sys.exit(1)
+        else:
+            # Если корневая директория не указана, используем текущую
+            base_dir = os.getcwd()
+        
+        # Обрабатываем путь к файлу
+        target_file = args.create_file
+        
+        # Убираем начальные ./ или .\ если они есть
+        if target_file.startswith('./') or target_file.startswith('.\\'):
+            target_file = target_file[2:]
+        
+        # Формируем полный путь
+        file_path = os.path.join(base_dir, target_file)
+        
+        # Создаем файл
+        success = create_empty_file(file_path)
+        if not success:
+            sys.exit(1)
+        
+        # Если не указаны аргументы для сканирования, просто выходим
+        if not args.output_file and not any([args.exclude_dirs, args.exclude_files, 
+                                           args.structure_only, args.extra_files,
+                                           args.exclude_content_dirs, args.exclude_content_files,
+                                           args.llm_mode, args.template]):
+            sys.exit(0)
     
     # Обработка основного режима сканирования
     if args.root_dir is None:
