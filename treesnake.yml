@@ -1,0 +1,15 @@
+config:
+  exclude_content_dirs: []
+  exclude_dirs:
+  - .git
+  - venv
+  - __pycache__
+  exlude_content_files:
+  - '*.log'
+  - '*.lock'
+  exlude_files:
+  - .env
+  - '*.pyc'
+  - re:^\..*
+mode: --llm
+output: --buffer

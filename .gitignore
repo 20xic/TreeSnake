@@ -203,5 +203,4 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-poetry.lock
 *.exe
