@@ -21,9 +21,9 @@ class ScanContext:
     def from_config(cls, config: ScanConfig) -> "ScanContext":
         return cls(
             exclude_dirs=RuleSet.from_patterns(config.exclude_dirs),
-            exclude_files=RuleSet.from_patterns(config.exlude_files),
+            exclude_files=RuleSet.from_patterns(config.exclude_files),
             exclude_content_dirs=RuleSet.from_patterns(config.exclude_content_dirs),
-            exclude_content_files=RuleSet.from_patterns(config.exlude_content_files),
+            exclude_content_files=RuleSet.from_patterns(config.exclude_content_files),
         )
 
 

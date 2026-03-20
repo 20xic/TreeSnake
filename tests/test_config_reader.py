@@ -16,9 +16,9 @@ from core.config_reader import (
 def scan_config_data():
     return {
         "exclude_dirs": [".git", "venv"],
-        "exlude_files": ["*.pyc"],
+        "exclude_files": ["*.pyc"],
         "exclude_content_dirs": ["dist"],
-        "exlude_content_files": ["*.log"],
+        "exclude_content_files": ["*.log"],
     }
 
 
@@ -27,16 +27,16 @@ class TestEnvConfigReader:
         file = tmp_path / ".env"
         file.write_text(
             "EXCLUDE_DIRS=[.git, venv]\n"
-            "EXLUDE_FILES=[*.pyc]\n"
+            "EXCLUDE_FILES=[*.pyc]\n"
             "EXCLUDE_CONTENT_DIRS=[dist]\n"
-            "EXLUDE_CONTENT_FILES=[*.log]\n",
+            "EXCLUDE_CONTENT_FILES=[*.log]\n",
             encoding="utf-8",
         )
 
         result = EnvConfigReader().read(str(file))
 
         assert result.exclude_dirs == scan_config_data["exclude_dirs"]
-        assert result.exlude_files == scan_config_data["exlude_files"]
+        assert result.exclude_files == scan_config_data["exclude_files"]
 
     def test_empty(self, tmp_path):
         file = tmp_path / ".env"
@@ -45,7 +45,7 @@ class TestEnvConfigReader:
         result = EnvConfigReader().read(str(file))
 
         assert result.exclude_dirs == []
-        assert result.exlude_files == []
+        assert result.exclude_files == []
 
 
 class TestJsonConfigReader:
@@ -56,7 +56,7 @@ class TestJsonConfigReader:
         result = JsonConfigReader().read(str(file))
 
         assert result.exclude_dirs == scan_config_data["exclude_dirs"]
-        assert result.exlude_files == scan_config_data["exlude_files"]
+        assert result.exclude_files == scan_config_data["exclude_files"]
 
     def test_empty(self, tmp_path):
         file = tmp_path / "config.json"
@@ -75,7 +75,7 @@ class TestYamlConfigReader:
         result = YamlConfigReader().read(str(file))
 
         assert result.exclude_dirs == scan_config_data["exclude_dirs"]
-        assert result.exlude_files == scan_config_data["exlude_files"]
+        assert result.exclude_files == scan_config_data["exclude_files"]
 
     def test_empty(self, tmp_path):
         file = tmp_path / "config.yml"
@@ -91,16 +91,16 @@ class TestTomlConfigReader:
         file = tmp_path / "config.toml"
         file.write_text(
             'exclude_dirs = [".git", "venv"]\n'
-            'exlude_files = ["*.pyc"]\n'
+            'exclude_files = ["*.pyc"]\n'
             'exclude_content_dirs = ["dist"]\n'
-            'exlude_content_files = ["*.log"]\n',
+            'exclude_content_files = ["*.log"]\n',
             encoding="utf-8",
         )
 
         result = TomlConfigReader().read(str(file))
 
         assert result.exclude_dirs == scan_config_data["exclude_dirs"]
-        assert result.exlude_files == scan_config_data["exlude_files"]
+        assert result.exclude_files == scan_config_data["exclude_files"]
 
     def test_empty(self, tmp_path):
         file = tmp_path / "config.toml"

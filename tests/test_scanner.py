@@ -1,5 +1,5 @@
-
 import pytest
+
 from core.scanner import BaseScanner
 from models import ScanConfig
 
@@ -55,7 +55,7 @@ class TestBaseScanner:
     def test_exclude_files(self, tmp_path, scanner):
         (tmp_path / "main.py").write_text("code")
         (tmp_path / "data.pyc").write_bytes(b"\xff")
-        config = ScanConfig(exlude_files=["*.pyc"])
+        config = ScanConfig(exclude_files=["*.pyc"])
 
         result = scanner.scan(str(tmp_path), config)
 
@@ -76,7 +76,7 @@ class TestBaseScanner:
 
     def test_exclude_content_files(self, tmp_path, scanner):
         (tmp_path / "app.log").write_text("logs")
-        config = ScanConfig(exlude_content_files=["*.log"])
+        config = ScanConfig(exclude_content_files=["*.log"])
 
         result = scanner.scan(str(tmp_path), config)
 

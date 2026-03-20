@@ -1,9 +1,16 @@
 import json
+
 import pytest
 import yaml
+
 from core.creator import FileCreator
+from core.template_creator import (
+    EnvTemplateCreator,
+    JsonTemplateCreator,
+    TomlTemplateCreator,
+    YamlTemplateCreator,
+)
 from models import ScanConfig, ScanTemplate
-from core.template_creator import EnvTemplateCreator, JsonTemplateCreator, YamlTemplateCreator, TomlTemplateCreator
 
 
 @pytest.fixture
@@ -11,9 +18,9 @@ def template():
     return ScanTemplate(
         config=ScanConfig(
             exclude_dirs=[".git", "venv"],
-            exlude_files=["*.pyc"],
+            exclude_files=["*.pyc"],
             exclude_contend_dirs=["dist"],
-            exlude_content_files=["*.log"],
+            exclude_content_files=["*.log"],
         ),
         mode="--default",
         output="",
