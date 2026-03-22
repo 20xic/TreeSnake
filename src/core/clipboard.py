@@ -1,4 +1,5 @@
 import platform
+import subprocess
 from abc import ABC, abstractmethod
 
 
@@ -67,12 +68,41 @@ class WindowsClipboard(IClipboard):
 
 class MacOSClipboard(IClipboard):
     def copy(self, text: str) -> None:
-        raise NotImplementedError("macOS clipboard not implemented")
+        try:
+            subprocess.run(
+                "pbcopy",
+                input=text.encode("utf-8"),
+                check=True,
+            )
+        except FileNotFoundError as e:
+            raise RuntimeError("pbcopy not found") from e
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"pbcopy failed with code {e.returncode}") from e
 
 
 class LinuxClipboard(IClipboard):
     def copy(self, text: str) -> None:
-        raise NotImplementedError("Linux clipboard not implemented")
+        encoded = text.encode("utf-8")
+        errors: list[str] = []
+
+        for cmd in (
+            ["xclip", "-selection", "clipboard"],
+            ["xsel", "--clipboard", "--input"],
+        ):
+            try:
+                subprocess.run(cmd, input=encoded, check=True)
+                return
+            except FileNotFoundError:
+                errors.append(f"{cmd[0]!r} not found")
+            except subprocess.CalledProcessError as e:
+                errors.append(f"{cmd[0]!r} failed with code {e.returncode}")
+
+        raise RuntimeError(
+            "Linux clipboard unavailable. Install xclip or xsel:\n"
+            "  sudo apt install xclip\n"
+            "  sudo dnf install xclip\n"
+            f"Details: {'; '.join(errors)}"
+        )
 
 
 class Clipboard(IClipboard):

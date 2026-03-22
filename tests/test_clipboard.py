@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -51,7 +51,7 @@ class TestWindowsClipboard:
         user32.CloseClipboard.assert_called_once()
 
     def test_copy_encodes_utf16(self, win_mocks):
-        kernel32, _, mock_memmove = win_mocks
+        kernel32, _, _ = win_mocks
         text = "hello"
         WindowsClipboard().copy(text)
 
@@ -71,7 +71,7 @@ class TestWindowsClipboard:
 
     def test_copy_unicode_text(self, win_mocks):
         kernel32, _, _ = win_mocks
-        text = "Привет 🌍"
+        text = "Привет мир"
         WindowsClipboard().copy(text)
 
         expected_size = len(text.encode("utf-16-le") + b"\x00\x00")
@@ -102,7 +102,7 @@ class TestWindowsClipboard:
 
     def test_raises_on_open_clipboard_failure(self, win_mocks):
         _, user32, _ = win_mocks
-        user32.OpenClipboard.return_value = 0  # WinAPI возвращает int, не bool
+        user32.OpenClipboard.return_value = 0
 
         with pytest.raises(RuntimeError, match="Failed to open clipboard"):
             WindowsClipboard().copy("hello")
@@ -127,15 +127,86 @@ class TestWindowsClipboard:
 
 
 class TestMacOSClipboard:
-    def test_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError, match="macOS"):
+    def test_copy_calls_pbcopy(self):
+        with patch("subprocess.run") as mock_run:
             MacOSClipboard().copy("hello")
+            mock_run.assert_called_once_with(
+                "pbcopy",
+                input=b"hello",
+                check=True,
+            )
+
+    def test_copy_encodes_utf8(self):
+        text = "Привет мир"
+        with patch("subprocess.run") as mock_run:
+            MacOSClipboard().copy(text)
+            mock_run.assert_called_once_with(
+                "pbcopy",
+                input=text.encode("utf-8"),
+                check=True,
+            )
+
+    def test_raises_when_pbcopy_not_found(self):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            with pytest.raises(RuntimeError, match="pbcopy not found"):
+                MacOSClipboard().copy("hello")
+
+    def test_raises_on_pbcopy_failure(self):
+        import subprocess
+
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, "pbcopy")
+        ):
+            with pytest.raises(RuntimeError, match="pbcopy failed"):
+                MacOSClipboard().copy("hello")
 
 
 class TestLinuxClipboard:
-    def test_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError, match="Linux"):
+    def test_copy_uses_xclip_when_available(self):
+        with patch("subprocess.run") as mock_run:
             LinuxClipboard().copy("hello")
+            mock_run.assert_called_once_with(
+                ["xclip", "-selection", "clipboard"],
+                input=b"hello",
+                check=True,
+            )
+
+    def test_copy_falls_back_to_xsel_when_xclip_not_found(self):
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [FileNotFoundError, None]
+            LinuxClipboard().copy("hello")
+            assert mock_run.call_count == 2
+            assert mock_run.call_args_list[1] == call(
+                ["xsel", "--clipboard", "--input"],
+                input=b"hello",
+                check=True,
+            )
+
+    def test_raises_when_both_xclip_and_xsel_not_found(self):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            with pytest.raises(RuntimeError, match="xclip or xsel"):
+                LinuxClipboard().copy("hello")
+
+    def test_raises_on_xclip_failure_and_xsel_not_found(self):
+        import subprocess
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                subprocess.CalledProcessError(1, "xclip"),
+                FileNotFoundError,
+            ]
+            with pytest.raises(RuntimeError, match="xclip or xsel"):
+                LinuxClipboard().copy("hello")
+
+    def test_copy_encodes_utf8(self):
+        text = "Привет мир"
+        with patch("subprocess.run") as mock_run:
+            LinuxClipboard().copy(text)
+            mock_run.assert_called_once_with(
+                ["xclip", "-selection", "clipboard"],
+                input=text.encode("utf-8"),
+                check=True,
+            )
 
 
 class TestClipboard:
