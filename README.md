@@ -54,7 +54,7 @@ treesnake scans a directory tree and exports its structure and file contents in 
 
 ### Download binary (recommended)
 
-Grab the latest binary for your platform from [Releases](https://github.com/yourname/treesnake/releases):
+Grab the latest binary for your platform from [Releases](https://github.com/20xic/TreeSnake/releases):
 
 | Platform | File |
 |----------|------|
