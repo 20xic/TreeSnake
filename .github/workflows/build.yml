@@ -33,13 +33,7 @@ jobs:
       - name: Install dependencies
         run: pip install pydantic typer rich python-dotenv pyyaml pyinstaller pytest
 
-      - name: Generate version file
-        run: python build.py --version-only
-
-      - name: Install package
-        run: pip install -e .
-
-      - name: Build binary
+      - name: Build
         run: python build.py
 
       - name: Rename artifact (macOS/Linux)

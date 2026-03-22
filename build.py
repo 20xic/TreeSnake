@@ -34,7 +34,7 @@ IS_WINDOWS = platform.system() == "Windows"
 
 a = Analysis(
     ['src/main.py'],
-    pathex=['.'],
+    pathex=['.', 'src'],
     binaries=[],
     datas=[],
     hiddenimports=[],
