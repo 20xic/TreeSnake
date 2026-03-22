@@ -22,7 +22,7 @@ _default_template = ScanTemplate(
         exclude_content_files=["*.log", "*.lock"],
     ),
     mode="--llm",
-    output="--buffer",
+    output="--clipboard",
 )
 
 CONFIG_FILE_NAME = "treesnake"

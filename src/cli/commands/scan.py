@@ -18,7 +18,7 @@ _MODE_TO_FORMAT = {
 }
 
 _OUTPUT_TO_DEST = {
-    "--buffer": OutputDest.clipboard,
+    "--clipboard": OutputDest.clipboard,
     "--file": OutputDest.file,
     "": OutputDest.stdout,
 }

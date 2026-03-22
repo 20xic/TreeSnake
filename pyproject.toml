@@ -6,7 +6,7 @@ authors = [
     {name = "twentyxic",email = "twenty.xic@yandex.ru"}
 ]
 license = {text = "MIT License"}
-requires-python = ">=3.12"
+requires-python = ">=3.12, <3.15"
 dependencies = [
     "pydantic (>=2.12.5,<3.0.0)",
     "typer (>=0.23.0,<0.24.0)",
@@ -25,3 +25,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+[dependency-groups]
+dev = [
+    "pyinstaller (>=6.19.0,<7.0.0)"
+]

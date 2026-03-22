@@ -10,7 +10,7 @@ from .scan_config import ScanConfig
 class ScanTemplate(BaseModel):
     config: ScanConfig
     mode: Literal["--json", "--llm", "--default", ""] = ""
-    output: Literal["", "--buffer", "--file"] = ""
+    output: Literal["", "--clipboard", "--file"] = ""
     out_file: str | None = None
 
     def to_env(self) -> str:
