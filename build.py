@@ -4,7 +4,6 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-
 ROOT = Path(__file__).parent
 IS_WINDOWS = platform.system() == "Windows"
 BINARY_NAME = "treesnake.exe" if IS_WINDOWS else "treesnake"
@@ -96,7 +95,7 @@ def main() -> None:
 
     write_spec_file()
     run(["pyinstaller", "treesnake.spec"])
-    print(f"[build] done → dist/{BINARY_NAME}")
+    print(f"[build] done -> dist/{BINARY_NAME}")
 
 
 if __name__ == "__main__":
