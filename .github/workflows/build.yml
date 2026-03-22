@@ -27,12 +27,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install pydantic typer rich python-dotenv pyyaml pyinstaller pytest
 
-      - name: Build
+      - name: Generate version file
+        run: python build.py --version-only
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Build binary
         run: python build.py
 
       - name: Rename artifact (macOS/Linux)
@@ -56,6 +61,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Read version from pyproject.toml
         id: version
