@@ -204,3 +204,5 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 *.exe
+treesnake.yml
+treesnake.json

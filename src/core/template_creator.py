@@ -8,7 +8,16 @@ from .creator import IContentCreator
 _default_template = ScanTemplate(
     config=ScanConfig(
         exclude_dirs=[".git", "venv", "__pycache__"],
-        exclude_files=[".env", "*.pyc", "re:^\\..*"],  # re: скрытые файлы
+        exclude_files=[
+            ".env",
+            "*.pyc",
+            "re:^\\..*",
+            ".gitignore",
+            "*.md",
+            "LICENSE",
+            "*.exe",
+            "*.lock",
+        ],  # re: скрытые файлы
         exclude_contend_dirs=["dist", "build"],
         exclude_content_files=["*.log", "*.lock"],
     ),

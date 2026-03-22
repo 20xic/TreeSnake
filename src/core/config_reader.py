@@ -8,18 +8,25 @@ import yaml
 from dotenv import dotenv_values
 
 from models import ScanConfig
+from models.scan_template import ScanTemplate
 
 
 class IConfigReader(ABC):
     @abstractmethod
-    def read(self, path: str) -> ScanConfig:
+    def read(self, path: str) -> ScanTemplate:
         raise NotImplementedError
 
 
 class EnvConfigReader(IConfigReader):
-    def read(self, path: str) -> ScanConfig:
+    def read(self, path: str) -> ScanTemplate:
         data = {k.lower(): self._parse_list(v) for k, v in dotenv_values(path).items()}
-        return ScanConfig.model_validate(data)
+        config = ScanConfig.model_validate(data)
+        return ScanTemplate(
+            config=config,
+            mode=data.get("mode", ""),
+            output=data.get("output", ""),
+            out_file=data.get("out_file") or None,
+        )
 
     def _parse_list(self, value: str) -> List[str]:
         value = value.strip().strip("[]")
@@ -27,24 +34,42 @@ class EnvConfigReader(IConfigReader):
 
 
 class YamlConfigReader(IConfigReader):
-    def read(self, path: str) -> ScanConfig:
+    def read(self, path: str) -> ScanTemplate:
         with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
-        return ScanConfig.model_validate(data)
+        config = ScanConfig.model_validate(data.get("config", data))
+        return ScanTemplate(
+            config=config,
+            mode=data.get("mode", ""),
+            output=data.get("output", ""),
+            out_file=data.get("out_file") or None,
+        )
 
 
 class TomlConfigReader(IConfigReader):
-    def read(self, path: str) -> ScanConfig:
+    def read(self, path: str) -> ScanTemplate:
         with open(path, "rb") as f:
             data = tomllib.load(f)
-        return ScanConfig.model_validate(data)
+        config = ScanConfig.model_validate(data.get("config", data))
+        return ScanTemplate(
+            config=config,
+            mode=data.get("mode", ""),
+            output=data.get("output", ""),
+            out_file=data.get("out_file") or None,
+        )
 
 
 class JsonConfigReader(IConfigReader):
-    def read(self, path: str) -> ScanConfig:
+    def read(self, path: str) -> ScanTemplate:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return ScanConfig.model_validate(data)
+        config = ScanConfig.model_validate(data.get("config", data))
+        return ScanTemplate(
+            config=config,
+            mode=data.get("mode", ""),
+            output=data.get("output", ""),
+            out_file=data.get("out_file") or None,
+        )
 
 
 class ConfigReader(IConfigReader):
@@ -56,10 +81,9 @@ class ConfigReader(IConfigReader):
         ".json": JsonConfigReader,
     }
 
-    def read(self, path: str) -> ScanConfig:
+    def read(self, path: str) -> ScanTemplate:
         filename = os.path.basename(path)
         ext = os.path.splitext(filename)[-1].lower() or f".{filename.lstrip('.')}"
-
         reader = self._readers.get(ext)
 
         if reader is None:

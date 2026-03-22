@@ -11,12 +11,15 @@ class ScanTemplate(BaseModel):
     config: ScanConfig
     mode: Literal["--json", "--llm", "--default", ""] = ""
     output: Literal["", "--buffer", "--file"] = ""
+    out_file: str | None = None
 
     def to_env(self) -> str:
         lines = []
         for field, value in self.model_dump().items():
             if isinstance(value, list):
                 lines.append(f"{field.upper()}=[{', '.join(value)}]")
+            elif value is None:
+                lines.append(f"{field.upper()}=")
             else:
                 lines.append(f"{field.upper()}={value}")
         return "\n".join(lines)
@@ -36,6 +39,8 @@ class ScanTemplate(BaseModel):
                 lines.append(
                     f"{field} = [{', '.join(f'{chr(34)}{v}{chr(34)}' for v in value)}]"
                 )
+            elif value is None:
+                lines.append(f'{field} = ""')
             else:
                 lines.append(f'{field} = "{value}"')
         return "\n".join(lines)
