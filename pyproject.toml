@@ -30,12 +30,12 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 packages = [
-    { include = "cli" },
-    { include = "core" },
-    { include = "models" },
-    { include = "utils" },
+    { include = "cli", from = "src" },
+    { include = "core", from = "src" },
+    { include = "models", from = "src" },
+    { include = "utils", from = "src" },
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["src"]
