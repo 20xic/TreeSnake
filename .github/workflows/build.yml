@@ -27,6 +27,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
         run: pip install pydantic typer rich python-dotenv pyyaml pyinstaller pytest
@@ -54,7 +56,6 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
 
