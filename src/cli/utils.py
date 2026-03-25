@@ -52,7 +52,6 @@ def build_config(
     exclude_content_dirs: list[str],
     exclude_content_files: list[str],
 ) -> ScanConfig:
-    print(exclude_dirs)
     return ScanConfig(
         exclude_dirs=_split_values(exclude_dirs),
         exclude_files=_split_values(exclude_files),
