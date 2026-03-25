@@ -1,6 +1,6 @@
 [project]
 name = "treesnake"
-version = "0.2.1"
+version = "0.2.1.1"
 description = "TreeSnake — A utility for scanning and documenting project structure while preserving file contents."
 authors = [
     {name = "twentyxic", email = "twenty.xic@yandex.ru"}
