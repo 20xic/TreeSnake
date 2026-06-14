@@ -1,6 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
+import io
 
 from models import Directory, File
 
@@ -17,7 +18,12 @@ class DefaultFormatter(IFormatter[str]):
     """Human-readable text with indentation."""
 
     def format(self, directory: Directory, prefix: str = "") -> str:
-        lines = [f"{prefix}📁 {directory.name}/"]
+        buffer = io.StringIO()
+        self._write(directory, prefix, buffer)
+        return buffer.getvalue()
+
+    def _write(self, directory: Directory, prefix: str, buffer: io.StringIO) -> None:
+        buffer.write(f"{prefix}📁 {directory.name}/\n")
 
         items = [*directory.files, *directory.subdirectories]
 
@@ -27,20 +33,15 @@ class DefaultFormatter(IFormatter[str]):
             child_prefix = prefix + ("    " if is_last else "│   ")
 
             if isinstance(item, File):
-                lines.append(f"{prefix}{connector}📄 {item.name} ({item.size} bytes)")
+                buffer.write(f"{prefix}{connector}📄 {item.name} ({item.size} bytes)\n")
                 if item.content:
-                    for j, line in enumerate(item.content.splitlines()):
-                        is_last_line = j == len(item.content.splitlines()) - 1
+                    lines = item.content.splitlines()
+                    for j, line in enumerate(lines):
+                        is_last_line = j == len(lines) - 1
                         line_connector = "└── " if is_last_line else "│   "
-                        lines.append(f"{child_prefix}{line_connector}{line}")
+                        buffer.write(f"{child_prefix}{line_connector}{line}\n")
             else:
-                lines.append(
-                    self.format(item, child_prefix).replace(
-                        f"{child_prefix}📁", f"{prefix}{connector}📁", 1
-                    )
-                )
-
-        return "\n".join(lines)
+                self._write(item, child_prefix, buffer)
 
 
 class LLMFormatter(IFormatter[str]):
@@ -49,22 +50,28 @@ class LLMFormatter(IFormatter[str]):
     FILE_SEPARATOR = "---"
 
     def format(self, directory: Directory, _path: str = "") -> str:
+        buffer = io.StringIO()
+        self._write(directory, _path, buffer)
+        return buffer.getvalue()
+
+    def _write(self, directory: Directory, _path: str, buffer: io.StringIO) -> None:
         path = f"{_path}/{directory.name}" if _path else directory.name
-        blocks = []
+
+        if not directory.files and not directory.subdirectories:
+            buffer.write(f"# {path}/\n{self.FILE_SEPARATOR}\n")
+            return
 
         for file in directory.files:
             file_path = f"{path}/{file.name}"
+            buffer.write(f"# {file_path}\n")
             if file.content:
-                blocks.append(f"# {file_path}\n{file.content}\n{self.FILE_SEPARATOR}")
+                buffer.write(file.content)
+                buffer.write(f"\n{self.FILE_SEPARATOR}\n")
             else:
-                blocks.append(f"# {file_path}\n{self.FILE_SEPARATOR}")
+                buffer.write(f"{self.FILE_SEPARATOR}\n")
 
         for subdir in directory.subdirectories:
-            blocks.append(self.format(subdir, path))
-
-        if not blocks:
-            return f"# {path}/\n{self.FILE_SEPARATOR}"
-        return "\n".join(blocks)
+            self._write(subdir, path, buffer)
 
 
 class JsonFormatter(IFormatter[dict]):

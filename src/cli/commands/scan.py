@@ -28,14 +28,22 @@ _OUTPUT_TO_DEST = {
 }
 
 
-def _print_stats(result: ScanResult, total_elapsed: float) -> None:
-    scan_ms = result.elapsed * 1000
-    total_ms = total_elapsed * 1000
+def _print_stats(
+    result: ScanResult,
+    format_elapsed: float,
+    write_elapsed: float,
+    total_elapsed: float,
+) -> None:
+    def ms(seconds: float) -> str:
+        return f"[bold green]{seconds * 1000:.1f}ms[/bold green]"
+
     _console.print(
         f"✔ Scanned [bold]{result.file_count}[/bold] files, "
-        f"[bold]{result.dir_count}[/bold] dirs — "
-        f"scan [bold green]{scan_ms:.1f}ms[/bold green] · "
-        f"total [bold green]{total_ms:.1f}ms[/bold green]"
+        f"[bold]{result.dir_count}[/bold] dirs\n"
+        f"   scan     {ms(result.elapsed)}\n"
+        f"   format   {ms(format_elapsed)}\n"
+        f"   write    {ms(write_elapsed)}\n"
+        f"   total    {ms(total_elapsed)}"
     )
 
 
@@ -147,6 +155,13 @@ def scan(
         resolved_out_file = Path(template.out_file)
 
     scan_result = BaseScanner().scan(str(path), scan_config)
+
+    format_timer = ScanTimer()
     result = get_formatter(resolved_fmt).format(scan_result.directory)
+    format_elapsed = format_timer.stop()
+
+    write_timer = ScanTimer()
     write_output(result, resolved_output, resolved_out_file)
-    _print_stats(scan_result, total_timer.stop())
+    write_elapsed = write_timer.stop()
+
+    _print_stats(scan_result, format_elapsed, write_elapsed, total_timer.stop())
