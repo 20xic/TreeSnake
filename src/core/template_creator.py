@@ -17,6 +17,12 @@ _default_template = ScanTemplate(
             "LICENSE",
             "*.exe",
             "*.lock",
+            "treesnake.exe",
+            "treesnake.json",
+            "treesnake.toml",
+            "treesnake.env",
+            "treesnake.yaml",
+            "treesnake.yml"
         ],  # re: скрытые файлы
         exclude_content_dirs=["dist", "build"],
         exclude_content_files=["*.log", "*.lock"],
