@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 
 from core.creator import FileCreator
+from core.gitignore_manager import GitignoreManager
 from core.template_creator import (
     EnvTemplateCreator,
     JsonTemplateCreator,
@@ -43,3 +44,6 @@ def init(
     path = path.resolve()
     _CREATORS[fmt](FileCreator()).create(str(path))
     typer.echo(f"Created {path / _EXT_MAP[fmt]}")
+
+    GitignoreManager(path / ".gitignore").update()
+    typer.echo(f"Updated {path / '.gitignore'}")
