@@ -4,7 +4,7 @@ from typing import Annotated
 import typer
 
 
-def     create(
+def create(
     path: Annotated[
         Path,
         typer.Argument(help="Path to file or directory to create."),
