@@ -19,7 +19,7 @@ def template():
         config=ScanConfig(
             exclude_dirs=[".git", "venv"],
             exclude_files=["*.pyc"],
-            exclude_contend_dirs=["dist"],
+            exclude_content_dirs=["dist"],
             exclude_content_files=["*.log"],
         ),
         mode="--default",

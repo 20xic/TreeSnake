@@ -62,6 +62,8 @@ class LLMFormatter(IFormatter[str]):
         for subdir in directory.subdirectories:
             blocks.append(self.format(subdir, path))
 
+        if not blocks:
+            return f"# {path}/\n{self.FILE_SEPARATOR}"
         return "\n".join(blocks)
 
 

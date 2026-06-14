@@ -18,7 +18,7 @@ _default_template = ScanTemplate(
             "*.exe",
             "*.lock",
         ],  # re: скрытые файлы
-        exclude_contend_dirs=["dist", "build"],
+        exclude_content_dirs=["dist", "build"],
         exclude_content_files=["*.log", "*.lock"],
     ),
     mode="--llm",
