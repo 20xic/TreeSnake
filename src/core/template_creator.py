@@ -23,8 +23,8 @@ _default_template = ScanTemplate(
         exclude_content_dirs=["dist", "build"],
         exclude_content_files=["*.log", "*.lock"],
     ),
-    mode="--llm",
-    output="--clipboard",
+    mode="llm",
+    output="clipboard",
 )
 
 CONFIG_FILE_NAME = "treesnake"

@@ -22,8 +22,8 @@ def template():
             exclude_content_dirs=["dist"],
             exclude_content_files=["*.log"],
         ),
-        mode="--default",
-        output="",
+        mode="default",
+        output="stdout",
     )
 
 

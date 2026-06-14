@@ -1,9 +1,9 @@
-import tomllib
+import sys
 from pathlib import Path
 
-pyproject = Path("pyproject.toml")
-with open(pyproject, "rb") as f:
-    version = tomllib.load(f)["project"]["version"]
+# Добавляем корень проекта в путь, чтобы импортировать build.py
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-version_file = Path("src/cli/_version.py")
-version_file.write_text(f'__version__ = "{version}"\n')
+from build import read_version, write_version_file
+
+write_version_file(read_version())

@@ -12,21 +12,6 @@ from models.scan_template import ScanTemplate
 from ..types import OutputDest, OutputFormat
 from ..utils import build_config, get_formatter, write_output
 
-_console = Console(stderr=True)
-
-_MODE_TO_FORMAT = {
-    "--llm": OutputFormat.llm,
-    "--json": OutputFormat.json,
-    "--default": OutputFormat.default,
-    "": OutputFormat.default,
-}
-
-_OUTPUT_TO_DEST = {
-    "--clipboard": OutputDest.clipboard,
-    "--file": OutputDest.file,
-    "": OutputDest.stdout,
-}
-
 
 def _print_stats(
     result: ScanResult,
@@ -34,18 +19,21 @@ def _print_stats(
     write_elapsed: float,
     total_elapsed: float,
     verbose: bool = False,
+    console: Console | None = None,
 ) -> None:
+    con = console or Console(stderr=True)
     total_ms = total_elapsed * 1000
-    _console.print(
+    con.print(
         f"✔ Scanned [bold]{result.file_count}[/bold] files, "
         f"[bold]{result.dir_count}[/bold] dirs — "
         f"total [bold green]{total_ms:.1f}ms[/bold green]"
     )
     if verbose:
+
         def ms(seconds: float) -> str:
             return f"[bold green]{seconds * 1000:.1f}ms[/bold green]"
 
-        _console.print(
+        con.print(
             f"   scan     {ms(result.elapsed)}\n"
             f"   format   {ms(format_elapsed)}\n"
             f"   write    {ms(write_elapsed)}"
@@ -67,31 +55,21 @@ def scan(
         ),
     ] = None,
     exclude_dirs: Annotated[
-        list[str],
-        typer.Option(
-            "--exclude-dir", "-ed", help="Directory names to exclude. Repeatable."
-        ),
-    ] = [],
+        Optional[list[str]],
+        typer.Option("--exclude-dir", "-ed", help="Directory names to exclude. Repeatable."),
+    ] = None,
     exclude_files: Annotated[
-        list[str],
-        typer.Option(
-            "--exclude-file", "-ef", help="File names/patterns to exclude. Repeatable."
-        ),
-    ] = [],
+        Optional[list[str]],
+        typer.Option("--exclude-file", "-ef", help="File names/patterns to exclude. Repeatable."),
+    ] = None,
     exclude_content_dirs: Annotated[
-        list[str],
-        typer.Option(
-            "--no-content-dir", "-ncd", help="Dirs to list without content. Repeatable."
-        ),
-    ] = [],
+        Optional[list[str]],
+        typer.Option("--no-content-dir", "-ncd", help="Dirs to list without content. Repeatable."),
+    ] = None,
     exclude_content_files: Annotated[
-        list[str],
-        typer.Option(
-            "--no-content-file",
-            "-ncf",
-            help="Files to list without content. Repeatable.",
-        ),
-    ] = [],
+        Optional[list[str]],
+        typer.Option("--no-content-file", "-ncf", help="Files to list without content. Repeatable."),
+    ] = None,
     fmt: Annotated[
         Optional[OutputFormat],
         typer.Option("--fmt", "-f", help="Output format. Overrides config."),
@@ -115,6 +93,11 @@ def scan(
 ) -> None:
     """Scan a directory tree and output its structure."""
     total_timer = ScanTimer()
+    
+    exclude_dirs = exclude_dirs or []
+    exclude_files = exclude_files or []
+    exclude_content_dirs = exclude_content_dirs or []
+    exclude_content_files = exclude_content_files or []
 
     path = path.resolve()
 
@@ -149,13 +132,13 @@ def scan(
 
     resolved_fmt = fmt
     if resolved_fmt is None and template is not None:
-        resolved_fmt = _MODE_TO_FORMAT.get(template.mode, OutputFormat.default)
+        resolved_fmt = OutputFormat(template.mode)
     if resolved_fmt is None:
         resolved_fmt = OutputFormat.default
 
     resolved_output = output
     if resolved_output is None and template is not None:
-        resolved_output = _OUTPUT_TO_DEST.get(template.output, OutputDest.stdout)
+        resolved_output = OutputDest(template.output)
     if resolved_output is None:
         resolved_output = OutputDest.stdout
 

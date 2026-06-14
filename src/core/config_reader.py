@@ -23,8 +23,8 @@ class EnvConfigReader(IConfigReader):
         config = ScanConfig.model_validate(data)
         return ScanTemplate(
             config=config,
-            mode=data.get("mode", ""),
-            output=data.get("output", ""),
+            mode=data.get("mode", "default") or "default",
+            output=data.get("output", "stdout") or "stdout",
             out_file=data.get("out_file") or None,
         )
 
@@ -40,8 +40,8 @@ class YamlConfigReader(IConfigReader):
         config = ScanConfig.model_validate(data.get("config", data))
         return ScanTemplate(
             config=config,
-            mode=data.get("mode", ""),
-            output=data.get("output", ""),
+            mode=data.get("mode", "default") or "default",
+            output=data.get("output", "stdout") or "stdout",
             out_file=data.get("out_file") or None,
         )
 
@@ -53,8 +53,8 @@ class TomlConfigReader(IConfigReader):
         config = ScanConfig.model_validate(data.get("config", data))
         return ScanTemplate(
             config=config,
-            mode=data.get("mode", ""),
-            output=data.get("output", ""),
+            mode=data.get("mode", "default") or "default",
+            output=data.get("output", "stdout") or "stdout",
             out_file=data.get("out_file") or None,
         )
 
@@ -66,8 +66,8 @@ class JsonConfigReader(IConfigReader):
         config = ScanConfig.model_validate(data.get("config", data))
         return ScanTemplate(
             config=config,
-            mode=data.get("mode", ""),
-            output=data.get("output", ""),
+            mode=data.get("mode", "default") or "default",
+            output=data.get("output", "stdout") or "stdout",
             out_file=data.get("out_file") or None,
         )
 
