@@ -2,7 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.1.2] - 2025-06-14
+## [0.2.2] - 2026-06-14
+
+### Added
+- `scan` command now prints scan stats to stderr after every scan:
+  file count, dir count, and total elapsed time
+- `--stat` flag for `scan` command: shows detailed timing breakdown
+  of scan, format, and write stages
+
+### Performance
+- `LLMFormatter` and `DefaultFormatter`: replaced string accumulation
+  with `io.StringIO` buffer, reducing format time ~100x on large trees
+  (46000ms → 276ms on 6688 files)
+
+## [0.2.1.2] - 2026-06-14
 
 ### Fixed
 - `LLMFormatter`: directories listed in `exclude_content_dirs` now appear
