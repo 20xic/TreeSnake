@@ -33,18 +33,23 @@ def _print_stats(
     format_elapsed: float,
     write_elapsed: float,
     total_elapsed: float,
+    verbose: bool = False,
 ) -> None:
-    def ms(seconds: float) -> str:
-        return f"[bold green]{seconds * 1000:.1f}ms[/bold green]"
-
+    total_ms = total_elapsed * 1000
     _console.print(
         f"✔ Scanned [bold]{result.file_count}[/bold] files, "
-        f"[bold]{result.dir_count}[/bold] dirs\n"
-        f"   scan     {ms(result.elapsed)}\n"
-        f"   format   {ms(format_elapsed)}\n"
-        f"   write    {ms(write_elapsed)}\n"
-        f"   total    {ms(total_elapsed)}"
+        f"[bold]{result.dir_count}[/bold] dirs — "
+        f"total [bold green]{total_ms:.1f}ms[/bold green]"
     )
+    if verbose:
+        def ms(seconds: float) -> str:
+            return f"[bold green]{seconds * 1000:.1f}ms[/bold green]"
+
+        _console.print(
+            f"   scan     {ms(result.elapsed)}\n"
+            f"   format   {ms(format_elapsed)}\n"
+            f"   write    {ms(write_elapsed)}"
+        )
 
 
 def scan(
@@ -103,6 +108,10 @@ def scan(
             "--out-file", help="Output file path (required when --output=file)."
         ),
     ] = None,
+    stat: Annotated[
+        bool,
+        typer.Option("--stat", help="Show detailed timing breakdown."),
+    ] = False,
 ) -> None:
     """Scan a directory tree and output its structure."""
     total_timer = ScanTimer()
@@ -164,4 +173,4 @@ def scan(
     write_output(result, resolved_output, resolved_out_file)
     write_elapsed = write_timer.stop()
 
-    _print_stats(scan_result, format_elapsed, write_elapsed, total_timer.stop())
+    _print_stats(scan_result, format_elapsed, write_elapsed, total_timer.stop(), stat)
