@@ -2,16 +2,18 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
+from rich.console import Console
 
 from core.config_reader import ConfigReader
 from core.scanner import BaseScanner
-from models import ScanResult
+from models import ScanResult, ScanTimer
 from models.scan_template import ScanTemplate
-from rich.console import Console
+
 from ..types import OutputDest, OutputFormat
 from ..utils import build_config, get_formatter, write_output
 
 _console = Console(stderr=True)
+
 _MODE_TO_FORMAT = {
     "--llm": OutputFormat.llm,
     "--json": OutputFormat.json,
@@ -26,12 +28,14 @@ _OUTPUT_TO_DEST = {
 }
 
 
-def _print_stats(result: ScanResult) -> None:
-    elapsed_ms = result.elapsed * 1000
+def _print_stats(result: ScanResult, total_elapsed: float) -> None:
+    scan_ms = result.elapsed * 1000
+    total_ms = total_elapsed * 1000
     _console.print(
         f"✔ Scanned [bold]{result.file_count}[/bold] files, "
-        f"[bold]{result.dir_count}[/bold] dirs "
-        f"in [bold green]{elapsed_ms:.1f}ms[/bold green]"
+        f"[bold]{result.dir_count}[/bold] dirs — "
+        f"scan [bold green]{scan_ms:.1f}ms[/bold green] · "
+        f"total [bold green]{total_ms:.1f}ms[/bold green]"
     )
 
 
@@ -93,6 +97,8 @@ def scan(
     ] = None,
 ) -> None:
     """Scan a directory tree and output its structure."""
+    total_timer = ScanTimer()
+
     path = path.resolve()
 
     if not path.exists() or not path.is_dir():
@@ -143,4 +149,4 @@ def scan(
     scan_result = BaseScanner().scan(str(path), scan_config)
     result = get_formatter(resolved_fmt).format(scan_result.directory)
     write_output(result, resolved_output, resolved_out_file)
-    _print_stats(scan_result)
+    _print_stats(scan_result, total_timer.stop())
