@@ -2,7 +2,7 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from models import Directory, File, ScanConfig
+from models import Directory, File, ScanConfig, ScanResult, ScanTimer
 
 from .file_reader import FileReader, IFileReader
 from .rule import RuleSet
@@ -29,7 +29,7 @@ class ScanContext:
 
 class IScanner(ABC):
     @abstractmethod
-    def scan(self, path: str, config: ScanConfig) -> Directory:
+    def scan(self, path: str, config: ScanConfig) -> ScanResult:
         raise NotImplementedError
 
 
@@ -37,9 +37,18 @@ class BaseScanner(IScanner):
     def __init__(self, file_reader: IFileReader | None = None):
         self._file_reader = file_reader or FileReader()
 
-    def scan(self, path: str, config: ScanConfig) -> Directory:
+    def scan(self, path: str, config: ScanConfig) -> ScanResult:
+        timer = ScanTimer()
         ctx = ScanContext.from_config(config)
-        return self._scan_recursive(os.path.normpath(path), ctx)
+        directory = self._scan_recursive(os.path.normpath(path), ctx)
+        elapsed = timer.stop()
+        file_count, dir_count = self._count(directory)
+        return ScanResult(
+            directory=directory,
+            elapsed=elapsed,
+            file_count=file_count,
+            dir_count=dir_count,
+        )
 
     def _scan_recursive(self, path: str, ctx: ScanContext) -> Directory:
         try:
@@ -90,3 +99,12 @@ class BaseScanner(IScanner):
             else:
                 subdirectories.append(self._scan_recursive(item_path, ctx))
         return subdirectories
+
+    def _count(self, directory: Directory) -> tuple[int, int]:
+        file_count = len(directory.files)
+        dir_count = len(directory.subdirectories)
+        for subdir in directory.subdirectories:
+            f, d = self._count(subdir)
+            file_count += f
+            dir_count += d
+        return file_count, dir_count

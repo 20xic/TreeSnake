@@ -206,3 +206,12 @@ __marimo__/
 *.exe
 treesnake.yml
 treesnake.json
+
+
+# treesnake
+treesnake
+treesnake.exe
+treesnake.toml
+treesnake.env
+treesnake.yaml
+.env.treesnake

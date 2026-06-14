@@ -5,11 +5,13 @@ import typer
 
 from core.config_reader import ConfigReader
 from core.scanner import BaseScanner
+from models import ScanResult
 from models.scan_template import ScanTemplate
-
+from rich.console import Console
 from ..types import OutputDest, OutputFormat
 from ..utils import build_config, get_formatter, write_output
 
+_console = Console(stderr=True)
 _MODE_TO_FORMAT = {
     "--llm": OutputFormat.llm,
     "--json": OutputFormat.json,
@@ -22,6 +24,15 @@ _OUTPUT_TO_DEST = {
     "--file": OutputDest.file,
     "": OutputDest.stdout,
 }
+
+
+def _print_stats(result: ScanResult) -> None:
+    elapsed_ms = result.elapsed * 1000
+    _console.print(
+        f"✔ Scanned [bold]{result.file_count}[/bold] files, "
+        f"[bold]{result.dir_count}[/bold] dirs "
+        f"in [bold green]{elapsed_ms:.1f}ms[/bold green]"
+    )
 
 
 def scan(
@@ -129,6 +140,7 @@ def scan(
     if resolved_out_file is None and template is not None and template.out_file:
         resolved_out_file = Path(template.out_file)
 
-    directory = BaseScanner().scan(str(path), scan_config)
-    result = get_formatter(resolved_fmt).format(directory)
+    scan_result = BaseScanner().scan(str(path), scan_config)
+    result = get_formatter(resolved_fmt).format(scan_result.directory)
     write_output(result, resolved_output, resolved_out_file)
+    _print_stats(scan_result)
