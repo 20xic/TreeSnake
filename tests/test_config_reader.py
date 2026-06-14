@@ -145,3 +145,11 @@ class TestConfigReader:
 
         with pytest.raises(ValueError, match="Unsupported config format"):
             ConfigReader().read(str(file))
+
+    def test_reads_env_treesnake(self, tmp_path):
+        file = tmp_path / ".env.treesnake"
+        file.write_text("EXCLUDE_DIRS=[.git]\nEXCLUDE_FILES=[*.pyc]\n", encoding="utf-8")
+
+        result = ConfigReader().read(str(file))
+
+        assert ".git" in result.config.exclude_dirs

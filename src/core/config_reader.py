@@ -73,8 +73,11 @@ class JsonConfigReader(IConfigReader):
 
 
 class ConfigReader(IConfigReader):
-    _readers = {
-        ".env": EnvConfigReader,
+    _readers_by_name = {
+        ".env": EnvConfigReader,           # добавить
+        ".env.treesnake": EnvConfigReader,
+    }
+    _readers_by_ext = {
         ".yml": YamlConfigReader,
         ".yaml": YamlConfigReader,
         ".toml": TomlConfigReader,
@@ -82,11 +85,14 @@ class ConfigReader(IConfigReader):
     }
 
     def read(self, path: str) -> ScanTemplate:
-        filename = os.path.basename(path)
-        ext = os.path.splitext(filename)[-1].lower() or f".{filename.lstrip('.')}"
-        reader = self._readers.get(ext)
+        filename = os.path.basename(path).lower()
 
-        if reader is None:
-            raise ValueError(f"Unsupported config format: {ext!r}")
+        reader_cls = self._readers_by_name.get(filename)
+        if reader_cls is None:
+            ext = os.path.splitext(filename)[-1]
+            reader_cls = self._readers_by_ext.get(ext)
 
-        return reader().read(path)
+        if reader_cls is None:
+            raise ValueError(f"Unsupported config format: {filename!r}")
+
+        return reader_cls().read(path)
