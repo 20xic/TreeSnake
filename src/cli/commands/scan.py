@@ -8,7 +8,7 @@ from rich.console import Console
 from cli._version import __version__
 from core.config_reader import ConfigReader
 from core.scanner import BaseScanner
-from core.update_checker import UpdateChecker
+from core.update_checker import REQUEST_TIMEOUT_SECONDS, UpdateChecker
 from models import ScanResult, ScanTimer
 from models.scan_template import ScanTemplate
 
@@ -142,13 +142,6 @@ def scan(
     total_timer = ScanTimer()
 
     update_checker = UpdateChecker(__version__)
-    # Не daemon: если идёт реальный сетевой запрос (раз в сутки, при устаревшем
-    # кэше), процесс сканирования почти всегда успевает завершиться раньше сети.
-    # daemon-поток в этом случае убивается вместе с процессом, не дописав файл
-    # кэша — после чего обновление будет проверяться заново на каждом запуске.
-    # join(timeout=0) ниже всё равно не блокирует видимый вывод: он печатается
-    # сразу же. Интерпретатор лишь подождёт поток чуть дольше при выходе из
-    # процесса (не более REQUEST_TIMEOUT_SECONDS), чтобы кэш реально записался.
     update_thread = Thread(target=update_checker.check)
     update_thread.start()
 
@@ -253,5 +246,5 @@ def scan(
 
     _print_stats(scan_result, format_elapsed, write_elapsed, total_timer.stop(), stat)
 
-    update_thread.join(timeout=0)
+    update_thread.join(timeout=REQUEST_TIMEOUT_SECONDS)
     _print_update_notice(update_checker, __version__)
