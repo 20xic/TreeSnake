@@ -51,10 +51,18 @@ def build_config(
     exclude_files: list[str],
     exclude_content_dirs: list[str],
     exclude_content_files: list[str],
+    include_dirs: Optional[list[str]] = None,
+    include_files: Optional[list[str]] = None,
+    max_depth: Optional[int] = None,
+    max_file_size: Optional[int] = None,
 ) -> ScanConfig:
     return ScanConfig(
         exclude_dirs=_split_values(exclude_dirs),
         exclude_files=_split_values(exclude_files),
         exclude_content_dirs=_split_values(exclude_content_dirs),
         exclude_content_files=_split_values(exclude_content_files),
+        include_dirs=_split_values(include_dirs or []),
+        include_files=_split_values(include_files or []),
+        max_depth=max_depth,
+        max_file_size=max_file_size,
     )

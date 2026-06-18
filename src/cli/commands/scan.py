@@ -1,11 +1,14 @@
 from pathlib import Path
+from threading import Thread
 from typing import Annotated, Optional
 
 import typer
 from rich.console import Console
 
+from cli._version import __version__
 from core.config_reader import ConfigReader
 from core.scanner import BaseScanner
+from core.update_checker import UpdateChecker
 from models import ScanResult, ScanTimer
 from models.scan_template import ScanTemplate
 
@@ -40,6 +43,21 @@ def _print_stats(
         )
 
 
+def _print_update_notice(
+    update_checker: UpdateChecker,
+    current_version: str,
+    console: Console | None = None,
+) -> None:
+    if not update_checker.has_update():
+        return
+    con = console or Console(stderr=True)
+    con.print(
+        f"⚠ New version available: v{current_version} → v{update_checker.latest_version}\n"
+        f"  {update_checker.release_url}",
+        style="yellow",
+    )
+
+
 def scan(
     path: Annotated[
         Path,
@@ -70,6 +88,35 @@ def scan(
         Optional[list[str]],
         typer.Option("--no-content-file", "-ncf", help="Files to list without content. Repeatable."),
     ] = None,
+    include_dirs: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            "--include-dir", "-id", help="Only include directories matching these names/patterns. Repeatable."
+        ),
+    ] = None,
+    include_files: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            "--include-file", "-if", help="Only include files matching these names/patterns. Repeatable."
+        ),
+    ] = None,
+    max_depth: Annotated[
+        Optional[int],
+        typer.Option("--max-depth", help="Limit recursion depth of the directory walk."),
+    ] = None,
+    max_file_size: Annotated[
+        Optional[int],
+        typer.Option(
+            "--max-file-size",
+            help="Files larger than this size (bytes) are listed with a placeholder instead of their content.",
+        ),
+    ] = None,
+    only_tree: Annotated[
+        bool,
+        typer.Option(
+            "--only-tree", help="Output only the directory structure, without file content."
+        ),
+    ] = False,
     fmt: Annotated[
         Optional[OutputFormat],
         typer.Option("--fmt", "-f", help="Output format. Overrides config."),
@@ -93,11 +140,27 @@ def scan(
 ) -> None:
     """Scan a directory tree and output its structure."""
     total_timer = ScanTimer()
-    
+
+    update_checker = UpdateChecker(__version__)
+    # Не daemon: если идёт реальный сетевой запрос (раз в сутки, при устаревшем
+    # кэше), процесс сканирования почти всегда успевает завершиться раньше сети.
+    # daemon-поток в этом случае убивается вместе с процессом, не дописав файл
+    # кэша — после чего обновление будет проверяться заново на каждом запуске.
+    # join(timeout=0) ниже всё равно не блокирует видимый вывод: он печатается
+    # сразу же. Интерпретатор лишь подождёт поток чуть дольше при выходе из
+    # процесса (не более REQUEST_TIMEOUT_SECONDS), чтобы кэш реально записался.
+    update_thread = Thread(target=update_checker.check)
+    update_thread.start()
+
     exclude_dirs = exclude_dirs or []
     exclude_files = exclude_files or []
     exclude_content_dirs = exclude_content_dirs or []
     exclude_content_files = exclude_content_files or []
+    include_dirs = include_dirs or []
+    include_files = include_files or []
+
+    if only_tree:
+        exclude_content_files = [*exclude_content_files, "*"]
 
     path = path.resolve()
 
@@ -118,12 +181,29 @@ def scan(
             typer.echo(f"Failed to read config: {exc}", err=True)
             raise typer.Exit(1)
 
-    if any([exclude_dirs, exclude_files, exclude_content_dirs, exclude_content_files]):
+    has_cli_overrides = any(
+        [
+            exclude_dirs,
+            exclude_files,
+            exclude_content_dirs,
+            exclude_content_files,
+            include_dirs,
+            include_files,
+            max_depth is not None,
+            max_file_size is not None,
+        ]
+    )
+
+    if has_cli_overrides:
         scan_config = build_config(
             exclude_dirs=list(exclude_dirs),
             exclude_files=list(exclude_files),
             exclude_content_dirs=list(exclude_content_dirs),
             exclude_content_files=list(exclude_content_files),
+            include_dirs=list(include_dirs),
+            include_files=list(include_files),
+            max_depth=max_depth,
+            max_file_size=max_file_size,
         )
     elif template is not None:
         scan_config = template.config
@@ -172,3 +252,6 @@ def scan(
     write_elapsed = write_timer.stop()
 
     _print_stats(scan_result, format_elapsed, write_elapsed, total_timer.stop(), stat)
+
+    update_thread.join(timeout=0)
+    _print_update_notice(update_checker, __version__)

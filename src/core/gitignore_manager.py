@@ -9,6 +9,7 @@ TREESNAKE_GITIGNORE_ENTRIES = [
     "treesnake.yaml",
     "treesnake.yml",
     ".env.treesnake",
+    ".treesnake/",
 ]
 
 _SECTION_HEADER = "# treesnake"
