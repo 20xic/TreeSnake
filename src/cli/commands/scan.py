@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 
 from cli._version import __version__
+from core.config_discovery import ConfigDiscovery
 from core.config_reader import ConfigReader
 from core.scanner import BaseScanner
 from core.update_checker import REQUEST_TIMEOUT_SECONDS, UpdateChecker
@@ -13,7 +14,7 @@ from models import ScanResult, ScanTimer
 from models.scan_template import ScanTemplate
 
 from ..types import OutputDest, OutputFormat
-from ..utils import build_config, get_formatter, write_output
+from ..utils import apply_gitignore, build_config, get_formatter, write_output
 
 
 def _print_stats(
@@ -117,6 +118,19 @@ def scan(
             "--only-tree", help="Output only the directory structure, without file content."
         ),
     ] = False,
+    use_gitignore: Annotated[
+        Optional[bool],
+        typer.Option(
+            "--gitignore/--no-gitignore",
+            help=(
+                "Automatically exclude patterns from the project's .gitignore "
+                "(merged additively with --exclude-dir/--exclude-file and any "
+                "config file — nothing you've explicitly excluded gets un-excluded). "
+                "Overrides the config file's use_gitignore if set there; "
+                "defaults to enabled when neither specifies it."
+            ),
+        ),
+    ] = None,
     fmt: Annotated[
         Optional[OutputFormat],
         typer.Option("--fmt", "-f", help="Output format. Overrides config."),
@@ -173,6 +187,16 @@ def scan(
         except Exception as exc:
             typer.echo(f"Failed to read config: {exc}", err=True)
             raise typer.Exit(1)
+    else:
+        discovered_config = ConfigDiscovery().find(str(path))
+        if discovered_config is not None:
+            try:
+                template = ConfigReader().read(discovered_config)
+            except Exception as exc:
+                typer.echo(
+                    f"Warning: ignoring discovered config {discovered_config}: {exc}",
+                    err=True,
+                )
 
     has_cli_overrides = any(
         [
@@ -202,6 +226,14 @@ def scan(
         scan_config = template.config
     else:
         scan_config = build_config([], [], [], [])
+
+    if use_gitignore is None and template is not None:
+        use_gitignore = template.use_gitignore
+    if use_gitignore is None:
+        use_gitignore = True
+
+    if use_gitignore:
+        scan_config = apply_gitignore(scan_config, path)
 
     resolved_fmt = fmt
     if resolved_fmt is None and template is not None:

@@ -216,3 +216,4 @@ treesnake.toml
 treesnake.env
 treesnake.yaml
 .env.treesnake
+.treesnake/

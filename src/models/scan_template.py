@@ -10,3 +10,4 @@ class ScanTemplate(BaseModel):
     mode: Literal["default", "llm", "json"] = "default"
     output: Literal["stdout", "clipboard", "file"] = "stdout"
     out_file: str | None = None
+    use_gitignore: bool = True

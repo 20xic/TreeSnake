@@ -8,6 +8,7 @@ from core.config_reader import (
     EnvConfigReader,
     JsonConfigReader,
     TomlConfigReader,
+    TreesnakeIgnoreConfigReader,
     YamlConfigReader,
 )
 
@@ -153,3 +154,45 @@ class TestConfigReader:
         result = ConfigReader().read(str(file))
 
         assert ".git" in result.config.exclude_dirs
+
+    def test_reads_treesnakeignore(self, tmp_path):
+        file = tmp_path / ".treesnakeignore"
+        file.write_text("*.pyc\ndist/\n", encoding="utf-8")
+
+        result = ConfigReader().read(str(file))
+
+        assert "*.pyc" in result.config.exclude_files
+        assert "dist" in result.config.exclude_dirs
+        assert "dist" not in result.config.exclude_files
+
+
+class TestTreesnakeIgnoreConfigReader:
+    def test_read_returns_gitignore_style_patterns(self, tmp_path):
+        file = tmp_path / ".treesnakeignore"
+        file.write_text("*.pyc\n__pycache__\ndist/\n*.log\n", encoding="utf-8")
+
+        result = TreesnakeIgnoreConfigReader().read(str(file))
+
+        assert "*.pyc" in result.config.exclude_files
+        assert "__pycache__" in result.config.exclude_dirs
+        assert "__pycache__" in result.config.exclude_files
+        assert "dist" in result.config.exclude_dirs
+        assert "dist" not in result.config.exclude_files
+
+    def test_read_defaults_mode_and_output(self, tmp_path):
+        file = tmp_path / ".treesnakeignore"
+        file.write_text("*.pyc\n", encoding="utf-8")
+
+        result = TreesnakeIgnoreConfigReader().read(str(file))
+
+        assert result.mode == "default"
+        assert result.output == "stdout"
+
+    def test_read_empty_file(self, tmp_path):
+        file = tmp_path / ".treesnakeignore"
+        file.write_text("", encoding="utf-8")
+
+        result = TreesnakeIgnoreConfigReader().read(str(file))
+
+        assert result.config.exclude_dirs == []
+        assert result.config.exclude_files == []
