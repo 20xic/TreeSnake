@@ -1,5 +1,6 @@
 import os
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 
 from models import Directory, File, ScanConfig, ScanResult, ScanTimer
 
@@ -7,6 +8,11 @@ from .file_reader import FileReader, IFileReader
 from .rule import CompiledRules
 
 CONTENT_EXCLUDED = ""
+
+# Чтение файлов — I/O, GIL на время open/read отпускается, поэтому пул потоков
+# даёт кратный выигрыш на холодном кэше и SSD. Значение как у stdlib-дефолта
+# ThreadPoolExecutor; больше — нет смысла, упираемся в диск.
+DEFAULT_WORKERS = min(32, (os.cpu_count() or 1) + 4)
 
 
 def _too_large_placeholder(size: int) -> str:
@@ -20,13 +26,30 @@ class IScanner(ABC):
 
 
 class BaseScanner(IScanner):
-    def __init__(self, file_reader: IFileReader | None = None):
+    """Сканирует в два прохода: сначала обход дерева (структура, размеры,
+    фильтры) — файлы, чьё содержимое нужно прочитать, откладываются;
+    затем их содержимое читается пулом потоков. Порядок файлов в дереве
+    от этого не зависит — он фиксируется на первом проходе.
+
+    `workers=1` (или 0) читает последовательно — удобно для тестов
+    с моками и отладки."""
+
+    def __init__(
+        self,
+        file_reader: IFileReader | None = None,
+        workers: int = DEFAULT_WORKERS,
+    ):
         self._file_reader = file_reader or FileReader()
+        self._workers = max(1, workers)
+        # (File-заглушка в дереве, путь, размер) — заполняется на обходе
+        self._pending: list[tuple[File, str, int]] = []
 
     def scan(self, path: str, config: ScanConfig) -> ScanResult:
         timer = ScanTimer()
         rules = CompiledRules.from_config(config)
+        self._pending = []
         directory = self._scan_recursive(os.path.normpath(path), rules)
+        self._read_pending()
         elapsed = timer.stop()
         file_count, dir_count = self._count(directory)
         return ScanResult(
@@ -82,7 +105,29 @@ class BaseScanner(IScanner):
             return File(name=name, content=CONTENT_EXCLUDED, size=size)
         if rules.max_file_size is not None and size > rules.max_file_size:
             return File(name=name, content=_too_large_placeholder(size), size=size)
-        return self._file_reader.read(entry.path, size)
+
+        file = File(name=name, content="", size=size)
+        self._pending.append((file, entry.path, size))
+        return file
+
+    def _read_pending(self) -> None:
+        pending, self._pending = self._pending, []
+        if not pending:
+            return
+
+        def read(item: tuple[File, str, int]) -> str:
+            _, path, size = item
+            return self._file_reader.read(path, size).content
+
+        if self._workers == 1 or len(pending) == 1:
+            contents = map(read, pending)
+        else:
+            workers = min(self._workers, len(pending))
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                contents = pool.map(read, pending)
+
+        for (file, _, _), content in zip(pending, contents, strict=True):
+            file.content = content
 
     def _collect_dir(
         self, entry: os.DirEntry, rules: CompiledRules, depth: int

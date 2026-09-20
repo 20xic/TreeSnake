@@ -237,3 +237,61 @@ class TestScanResult:
             "adir",
             "zdir",
         ]
+
+
+class TestParallelReading:
+    @staticmethod
+    def _make_tree(tmp_path, n=40):
+        for i in range(n):
+            sub = tmp_path / f"d{i % 5}"
+            sub.mkdir(exist_ok=True)
+            (sub / f"f{i:02}.txt").write_text(f"content {i}", encoding="utf-8")
+
+    @staticmethod
+    def _flatten(directory):
+        out = [(f.name, f.content) for f in directory.files]
+        for sub in directory.subdirectories:
+            out.extend(TestParallelReading._flatten(sub))
+        return out
+
+    def test_parallel_matches_sequential(self, tmp_path, empty_config):
+        self._make_tree(tmp_path)
+
+        sequential = BaseScanner(workers=1).scan(str(tmp_path), empty_config)
+        parallel = BaseScanner(workers=8).scan(str(tmp_path), empty_config)
+
+        assert self._flatten(parallel.directory) == self._flatten(sequential.directory)
+        assert parallel.file_count == 40
+
+    def test_every_pending_file_gets_its_own_content(self, tmp_path, empty_config):
+        self._make_tree(tmp_path)
+
+        result = BaseScanner(workers=8).scan(str(tmp_path), empty_config)
+
+        for name, content in self._flatten(result.directory):
+            assert content == f"content {int(name[1:3])}"
+
+    def test_excluded_content_is_not_read(self, tmp_path):
+        self._make_tree(tmp_path, n=5)
+        reads = []
+
+        class SpyReader:
+            def read(self, path, size=None):
+                reads.append(path)
+                from core.file_reader import FileReader
+
+                return FileReader().read(path, size)
+
+        config = ScanConfig(exclude_content_files=["f0*"])
+        BaseScanner(file_reader=SpyReader(), workers=4).scan(str(tmp_path), config)
+
+        assert reads == []
+
+    def test_scanner_is_reusable(self, tmp_path, empty_config):
+        self._make_tree(tmp_path, n=6)
+        scanner = BaseScanner(workers=4)
+
+        first = scanner.scan(str(tmp_path), empty_config)
+        second = scanner.scan(str(tmp_path), empty_config)
+
+        assert self._flatten(first.directory) == self._flatten(second.directory)
