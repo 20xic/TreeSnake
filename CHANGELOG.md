@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 Entries are generated from [Conventional Commits](https://www.conventionalcommits.org/) by `cz bump`.
 
+## v0.5.2 (2026-09-20)
+
+### Perf
+
+- **scanner**: read file contents in a thread pool
+
 ## v0.5.1 (2026-09-20)
 
 ### Perf
