@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 Entries are generated from [Conventional Commits](https://www.conventionalcommits.org/) by `cz bump`.
 
+## v0.5.0 (2026-09-20)
+
+### Feat
+
+- **scanner**: sort directory entries by name for deterministic output
+
+### Refactor
+
+- **models**: plain dataclasses for File/Directory, move rule compilation to core
+
 ## v0.4.3 (2026-09-20)
 
 ### Perf
