@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 Entries are generated from [Conventional Commits](https://www.conventionalcommits.org/) by `cz bump`.
 
+## v0.5.3 (2026-09-20)
+
+### Fix
+
+- **scan**: --only-tree no longer discards the config file's filters
+
+### Refactor
+
+- **config**: single registry for config formats
+
 ## v0.5.2 (2026-09-20)
 
 ### Perf
