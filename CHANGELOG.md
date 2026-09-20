@@ -1,8 +1,9 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+Entries are generated from [Conventional Commits](https://www.conventionalcommits.org/) by `cz bump`.
 
-## [Unreleased]
+## v0.4.1 (2026-09-20)
 
 ### Added
 - `xml` output format (`--fmt xml` / `mode = "xml"`): nested
@@ -10,7 +11,29 @@ All notable changes to this project will be documented in this file.
   and content kept verbatim in CDATA — makes the project hierarchy
   explicit for LLM consumption
 
-## [0.2.2] - 2026-06-14
+## v0.4 (2026-06-19)
+
+### Feat
+- **config**: add `use_gitignore` setting to config templates
+
+## v0.3.1 (2026-06-18)
+
+### Fix
+- **update-checker**: explicitly bound the wait for the background check
+  instead of `join(timeout=0)`
+
+## v0.3 (2026-06-18)
+
+### Feat
+- **scan**: add `--max-depth`, `--max-file-size`, `--include-dir`/`--include-file`
+  and background update check
+
+### Refactor
+- clean up scan command and template model
+- inline `ScanContext` into `ScanConfig`, fix `ConfigReader` routing
+- separate serialization, fix version source, harden scan errors, fix typo
+
+## v0.2.2 (2026-06-14)
 
 ### Added
 - `scan` command now prints scan stats to stderr after every scan:
@@ -23,7 +46,7 @@ All notable changes to this project will be documented in this file.
   with `io.StringIO` buffer, reducing format time ~100x on large trees
   (46000ms → 276ms on 6688 files)
 
-## [0.2.1.2] - 2026-06-14
+## v0.2.1.2 (2026-06-14)
 
 ### Fixed
 - `LLMFormatter`: directories listed in `exclude_content_dirs` now appear
@@ -44,6 +67,6 @@ All notable changes to this project will be documented in this file.
   `treesnake.json`, `treesnake.toml`, `treesnake.env`,
   `treesnake.yaml`, `treesnake.yml`, `treesnake.exe`
 
-## [0.2.1.1] - ...
+## v0.2.1.1 (2026-06-14)
 
 - Initial patch release

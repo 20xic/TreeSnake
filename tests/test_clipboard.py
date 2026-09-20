@@ -147,9 +147,11 @@ class TestMacOSClipboard:
             )
 
     def test_raises_when_pbcopy_not_found(self):
-        with patch("subprocess.run", side_effect=FileNotFoundError):
-            with pytest.raises(RuntimeError, match="pbcopy not found"):
-                MacOSClipboard().copy("hello")
+        with (
+            patch("subprocess.run", side_effect=FileNotFoundError),
+            pytest.raises(RuntimeError, match="pbcopy not found"),
+        ):
+            MacOSClipboard().copy("hello")
 
     def test_raises_on_pbcopy_failure(self):
         import subprocess
@@ -185,9 +187,11 @@ class TestLinuxClipboard:
             )
 
     def test_raises_when_both_xclip_and_xsel_not_found(self):
-        with patch("subprocess.run", side_effect=FileNotFoundError):
-            with pytest.raises(RuntimeError, match="xclip or xsel"):
-                LinuxClipboard().copy("hello")
+        with (
+            patch("subprocess.run", side_effect=FileNotFoundError),
+            pytest.raises(RuntimeError, match="xclip or xsel"),
+        ):
+            LinuxClipboard().copy("hello")
 
     def test_raises_on_xclip_failure_and_xsel_not_found(self):
         import subprocess
@@ -228,9 +232,11 @@ class TestClipboard:
         assert isinstance(cb._impl, LinuxClipboard)
 
     def test_raises_on_unsupported_platform(self):
-        with patch("platform.system", return_value="FreeBSD"):
-            with pytest.raises(RuntimeError, match="Unsupported platform"):
-                Clipboard()
+        with (
+            patch("platform.system", return_value="FreeBSD"),
+            pytest.raises(RuntimeError, match="Unsupported platform"),
+        ):
+            Clipboard()
 
     def test_copy_delegates_to_impl(self):
         with patch("platform.system", return_value="Windows"):

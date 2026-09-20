@@ -61,7 +61,7 @@ class EnvConfigReader(IConfigReader):
 
 class YamlConfigReader(IConfigReader):
     def read(self, path: str) -> ScanTemplate:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         config = ScanConfig.model_validate(data.get("config", data))
         return ScanTemplate(
@@ -89,7 +89,7 @@ class TomlConfigReader(IConfigReader):
 
 class JsonConfigReader(IConfigReader):
     def read(self, path: str) -> ScanTemplate:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         config = ScanConfig.model_validate(data.get("config", data))
         return ScanTemplate(

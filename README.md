@@ -253,12 +253,34 @@ Output binary will be at `dist/treesnake` (or `dist/treesnake.exe` on Windows).
 # Install with dev dependencies
 pip install -e ".[dev]"
 
+# Generate src/cli/_version.py (required once after a fresh clone)
+python build.py --version-only
+
 # Run tests
 pytest
+
+# Lint and format
+ruff check .
+ruff format .
+
+# Install git hooks (ruff on commit, commit message check)
+pre-commit install --hook-type pre-commit --hook-type commit-msg
 
 # Run from source
 python src/main.py scan .
 ```
+
+### Commits and releases
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
+(`feat(scan): ...`, `fix(formatter): ...`, `docs: ...`) and are checked by
+`cz check` in CI and by the `commit-msg` hook locally.
+
+Releases are automatic. On every push to `main`, CI runs the tests and then
+`cz bump` computes the next version from the commits since the last tag
+(`fix` → patch, `feat` → minor, `BREAKING CHANGE` → major), updates
+`pyproject.toml` and `CHANGELOG.md`, pushes the tag, builds the binaries and
+publishes a GitHub release. Never bump the version by hand.
 
 ## License
 

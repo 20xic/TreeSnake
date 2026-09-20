@@ -19,6 +19,9 @@ dependencies = [
 dev = [
     "pyinstaller>=6.0.0,<7.0.0",
     "pytest>=9.0.0,<10.0.0",
+    "ruff>=0.16.0,<0.17.0",
+    "commitizen>=4.18.0,<5.0.0",
+    "pre-commit>=4.0.0,<5.0.0",
 ]
 
 [project.scripts]
@@ -39,3 +42,35 @@ packages = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+src = ["src", "tests"]
+extend-exclude = ["venv", "build", "dist", "src/cli/_version.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+    "E501",   # line length is handled by the formatter
+    "RUF001", "RUF002", "RUF003",  # cyrillic in strings/comments/docstrings
+    "RUF012", # mutable class defaults are fine for pydantic models / constants
+    "UP042",  # typer expects `str, Enum` for choice params
+    "UP046",  # keep `Generic[T]` on ABC interfaces
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]  # assert False in tests
+
+[tool.ruff.lint.isort]
+known-first-party = ["cli", "core", "models", "utils"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "pep621"
+version_scheme = "pep440"
+tag_format = "v$version"
+bump_message = "chore(release): bump version $current_version → $new_version"
+update_changelog_on_bump = true
+changelog_incremental = true
+changelog_file = "CHANGELOG.md"

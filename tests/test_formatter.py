@@ -67,7 +67,7 @@ class TestDefaultFormatter:
     def test_empty_file_no_content_lines(self, simple_directory):
         result = DefaultFormatter().format(simple_directory)
         lines = result.splitlines()
-        empty_file_line = next(i for i, l in enumerate(lines) if "empty.py" in l)
+        empty_file_line = next(i for i, line in enumerate(lines) if "empty.py" in line)
         next_line = (
             lines[empty_file_line + 1] if empty_file_line + 1 < len(lines) else ""
         )
@@ -110,7 +110,7 @@ class TestLLMFormatter:
     def test_empty_file_has_separator(self, simple_directory):
         result = LLMFormatter().format(simple_directory)
         lines = result.splitlines()
-        empty_idx = next(i for i, l in enumerate(lines) if "empty.py" in l)
+        empty_idx = next(i for i, line in enumerate(lines) if "empty.py" in line)
         assert lines[empty_idx + 1] == "---"
 
     def test_nested_paths(self, nested_directory):

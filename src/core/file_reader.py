@@ -15,7 +15,7 @@ class FileReader(IFileReader):
 
     def read(self, path: str) -> File:
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 content = f.read()
         except (UnicodeDecodeError, PermissionError, OSError):
             content = self.CONTENT_UNREADABLE

@@ -120,11 +120,7 @@ class XmlFormatter(IFormatter[str]):
         self, file: File, path: str, depth: int, buffer: io.StringIO
     ) -> None:
         indent = self.INDENT * depth
-        attrs = (
-            f"name={quoteattr(file.name)} "
-            f"path={quoteattr(path)} "
-            f'size="{file.size}"'
-        )
+        attrs = f'name={quoteattr(file.name)} path={quoteattr(path)} size="{file.size}"'
         if not file.content:
             buffer.write(f"{indent}<file {attrs} />\n")
             return
@@ -133,7 +129,7 @@ class XmlFormatter(IFormatter[str]):
         buffer.write(file.content.replace("]]>", "]]]]><![CDATA[>"))
         if not file.content.endswith("\n"):
             buffer.write("\n")
-        buffer.write(f"]]></file>\n")
+        buffer.write("]]></file>\n")
 
 
 class JsonFormatter(IFormatter[dict]):

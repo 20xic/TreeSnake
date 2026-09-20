@@ -4,8 +4,68 @@ on:
   push:
     branches: [main]
 
+# Один релизный прогон за раз: два быстрых пуша в main не должны
+# одновременно бампать версию и создавать релиз.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  bump:
+    # Автоинкремент версии по Conventional Commits: fix -> patch, feat -> minor,
+    # BREAKING CHANGE -> major. Правит pyproject.toml и CHANGELOG.md, создаёт
+    # коммит и тег v<version>, пушит в main. Пуш от GITHUB_TOKEN не запускает
+    # workflow повторно, так что петли нет.
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      ref: ${{ steps.bump.outputs.ref }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install commitizen
+        run: pip install "commitizen>=4.18.0,<5.0.0"
+
+      - name: Bump version
+        id: bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          set +e
+          cz bump --yes --changelog
+          rc=$?
+          set -e
+
+          # 3 = NO_COMMITS_FOUND, 21 = NO_INCREMENT (только chore/docs/... коммиты)
+          if [ "$rc" -eq 3 ] || [ "$rc" -eq 21 ]; then
+            echo "Nothing to bump"
+            echo "ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [ "$rc" -ne 0 ]; then
+            exit "$rc"
+          fi
+
+          git push --follow-tags origin HEAD:main
+          echo "ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: bump
     strategy:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
@@ -22,6 +82,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump.outputs.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,7 +93,7 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
-        run: pip install pydantic typer rich python-dotenv pyyaml pyinstaller pytest
+        run: pip install -e ".[dev]"
 
       - name: Build
         run: python build.py
@@ -41,6 +103,12 @@ jobs:
         shell: bash
         run: mv dist/treesnake dist/${{ matrix.artifact }}
 
+      - name: Smoke test binary
+        shell: bash
+        run: |
+          ./dist/${{ matrix.artifact }} version
+          ./dist/${{ matrix.artifact }} scan src --only-tree > /dev/null
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -48,7 +116,7 @@ jobs:
           path: dist/${{ matrix.artifact }}
 
   release:
-    needs: build
+    needs: [bump, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -56,42 +124,42 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          ref: ${{ needs.bump.outputs.ref }}
 
       - name: Read version from pyproject.toml
         id: version
         run: |
-          VERSION=$(python -c "import tomllib; f=open('pyproject.toml','rb'); d=tomllib.load(f); print(d['project']['version'])")
+          VERSION=$(python3 -c "import tomllib; f=open('pyproject.toml','rb'); d=tomllib.load(f); print(d['project']['version'])")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Check if tag already exists
-        id: tag_check
+      - name: Check if release already exists
+        id: release_check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.version }}" | grep -q .; then
+          if gh release view "${{ steps.version.outputs.tag }}" --repo "${{ github.repository }}" > /dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Download all artifacts
-        if: steps.tag_check.outputs.exists == 'false'
+        if: steps.release_check.outputs.exists == 'false'
         uses: actions/download-artifact@v4
         with:
           path: dist
 
       - name: Create release and upload assets
-        if: steps.tag_check.outputs.exists == 'false'
+        if: steps.release_check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: treesnake ${{ steps.version.outputs.tag }}
           draft: false
           prerelease: false
+          generate_release_notes: true
           files: |
             dist/treesnake.exe/treesnake.exe
             dist/treesnake-macos/treesnake-macos

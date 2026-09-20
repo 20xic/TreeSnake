@@ -203,7 +203,7 @@ def scan(
             template = ConfigReader().read(str(config))
         except Exception as exc:
             typer.echo(f"Failed to read config: {exc}", err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
     else:
         discovered_config = ConfigDiscovery().find(str(path))
         if discovered_config is not None:
@@ -272,17 +272,17 @@ def scan(
         scan_result = BaseScanner().scan(str(path), scan_config)
     except OSError as exc:
         typer.echo(f"Scan failed: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except Exception as exc:
         typer.echo(f"Unexpected error during scan: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     format_timer = ScanTimer()
     try:
         result = get_formatter(resolved_fmt).format(scan_result.directory)
     except Exception as exc:
         typer.echo(f"Failed to format output: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     format_elapsed = format_timer.stop()
 
     write_timer = ScanTimer()
@@ -290,7 +290,7 @@ def scan(
         write_output(result, resolved_output, resolved_out_file)
     except OSError as exc:
         typer.echo(f"Failed to write output: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     write_elapsed = write_timer.stop()
 
     _print_stats(scan_result, format_elapsed, write_elapsed, total_timer.stop(), stat)

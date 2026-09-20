@@ -35,7 +35,7 @@ def write_output(text: str, dest: OutputDest, out_file: Path | None) -> None:
             typer.echo("Copied to clipboard.", err=True)
         except RuntimeError as exc:
             typer.echo(f"Clipboard error: {exc}", err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
 
     elif dest == OutputDest.file:
         if out_file is None:
