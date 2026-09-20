@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 Entries are generated from [Conventional Commits](https://www.conventionalcommits.org/) by `cz bump`.
 
+## v0.5.1 (2026-09-20)
+
+### Perf
+
+- **formatter**: stream output instead of building the whole string in memory
+
 ## v0.5.0 (2026-09-20)
 
 ### Feat
