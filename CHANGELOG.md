@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 Entries are generated from [Conventional Commits](https://www.conventionalcommits.org/) by `cz bump`.
 
+## v0.4.3 (2026-09-20)
+
+### Perf
+
+- **scanner**: walk with os.scandir, stat once per file, sniff binaries early
+
 ## v0.4.2 (2026-09-20)
 
 ### Fix
