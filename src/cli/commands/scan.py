@@ -19,8 +19,7 @@ from ..utils import apply_gitignore, build_config, get_formatter, write_output
 
 def _print_stats(
     result: ScanResult,
-    format_elapsed: float,
-    write_elapsed: float,
+    output_elapsed: float,
     total_elapsed: float,
     verbose: bool = False,
     console: Console | None = None,
@@ -39,8 +38,7 @@ def _print_stats(
 
         con.print(
             f"   scan     {ms(result.elapsed)}\n"
-            f"   format   {ms(format_elapsed)}\n"
-            f"   write    {ms(write_elapsed)}"
+            f"   output   {ms(output_elapsed)}  (format + write)"
         )
 
 
@@ -277,23 +275,25 @@ def scan(
         typer.echo(f"Unexpected error during scan: {exc}", err=True)
         raise typer.Exit(1) from exc
 
-    format_timer = ScanTimer()
+    output_timer = ScanTimer()
     try:
-        result = get_formatter(resolved_fmt).format(scan_result.directory)
-    except Exception as exc:
-        typer.echo(f"Failed to format output: {exc}", err=True)
-        raise typer.Exit(1) from exc
-    format_elapsed = format_timer.stop()
-
-    write_timer = ScanTimer()
-    try:
-        write_output(result, resolved_output, resolved_out_file)
+        write_output(
+            get_formatter(resolved_fmt),
+            scan_result.directory,
+            resolved_output,
+            resolved_out_file,
+        )
+    except typer.Exit:
+        raise
     except OSError as exc:
         typer.echo(f"Failed to write output: {exc}", err=True)
         raise typer.Exit(1) from exc
-    write_elapsed = write_timer.stop()
+    except Exception as exc:
+        typer.echo(f"Failed to format output: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    output_elapsed = output_timer.stop()
 
-    _print_stats(scan_result, format_elapsed, write_elapsed, total_timer.stop(), stat)
+    _print_stats(scan_result, output_elapsed, total_timer.stop(), stat)
 
     update_thread.join(timeout=REQUEST_TIMEOUT_SECONDS)
     _print_update_notice(update_checker, __version__)

@@ -1,3 +1,4 @@
+import io
 import json
 import xml.etree.ElementTree as ET
 
@@ -9,6 +10,7 @@ from core.formatter import (
     JsonStringFormatter,
     LLMFormatter,
     XmlFormatter,
+    walk,
 )
 from models import Directory, File
 
@@ -250,9 +252,52 @@ class TestJsonStringFormatter:
 
     def test_no_indent(self, simple_directory):
         result = JsonStringFormatter(indent=None).format(simple_directory)
-        assert "\n" not in result
+        # одна строка + завершающий перевод строки
+        assert "\n" not in result.rstrip("\n")
+        assert result.endswith("\n")
 
     def test_nested_structure(self, nested_directory):
         result = JsonStringFormatter().format(nested_directory)
         parsed = json.loads(result)
         assert parsed["subdirectories"][0]["name"] == "core"
+
+
+class TestWalk:
+    def test_preorder_with_paths(self, nested_directory):
+        nested_directory.subdirectories.append(Directory(name="tests"))
+
+        paths = [path for path, _ in walk(nested_directory)]
+
+        assert paths == ["root", "root/core", "root/core/utils", "root/tests"]
+
+    def test_yields_directory_objects(self, nested_directory):
+        names = [d.name for _, d in walk(nested_directory)]
+        assert names == ["root", "core", "utils"]
+
+
+class TestStreaming:
+    @pytest.mark.parametrize(
+        "formatter",
+        [DefaultFormatter(), LLMFormatter(), XmlFormatter(), JsonStringFormatter()],
+        ids=["default", "llm", "xml", "json"],
+    )
+    def test_write_matches_format(self, formatter, nested_directory):
+        stream = io.StringIO()
+        formatter.write(nested_directory, stream)
+        assert stream.getvalue() == formatter.format(nested_directory)
+
+    def test_default_multiline_content_keeps_tree_lines(self):
+        directory = Directory(
+            name="root",
+            files=[File(name="a.py", content="one\ntwo\nthree", size=13)],
+        )
+
+        result = DefaultFormatter().format(directory)
+
+        assert result == (
+            "📁 root/\n"
+            "└── 📄 a.py (13 bytes)\n"
+            "    │   one\n"
+            "    │   two\n"
+            "    └── three\n"
+        )

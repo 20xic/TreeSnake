@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import typer
@@ -5,17 +6,18 @@ import typer
 from core.clipboard import Clipboard
 from core.formatter import (
     DefaultFormatter,
+    IFormatter,
     JsonStringFormatter,
     LLMFormatter,
     XmlFormatter,
 )
 from core.gitignore_parser import GitignoreParser
-from models import ScanConfig
+from models import Directory, ScanConfig
 
 from .types import OutputDest, OutputFormat
 
 
-def get_formatter(fmt: OutputFormat):
+def get_formatter(fmt: OutputFormat) -> IFormatter:
     if fmt == OutputFormat.llm:
         return LLMFormatter()
     if fmt == OutputFormat.json:
@@ -25,13 +27,22 @@ def get_formatter(fmt: OutputFormat):
     return DefaultFormatter()
 
 
-def write_output(text: str, dest: OutputDest, out_file: Path | None) -> None:
+def write_output(
+    formatter: IFormatter,
+    directory: Directory,
+    dest: OutputDest,
+    out_file: Path | None,
+) -> None:
+    """Форматирует дерево прямо в место назначения. stdout и файл получают
+    поток — итоговая строка целиком в памяти не собирается; буфер обмена
+    по природе требует строку."""
     if dest == OutputDest.stdout:
-        typer.echo(text)
+        formatter.write(directory, sys.stdout)
+        sys.stdout.flush()
 
     elif dest == OutputDest.clipboard:
         try:
-            Clipboard().copy(text)
+            Clipboard().copy(formatter.format(directory))
             typer.echo("Copied to clipboard.", err=True)
         except RuntimeError as exc:
             typer.echo(f"Clipboard error: {exc}", err=True)
@@ -42,7 +53,8 @@ def write_output(text: str, dest: OutputDest, out_file: Path | None) -> None:
             typer.echo("--out-file is required when --output=file", err=True)
             raise typer.Exit(1)
         out_file.parent.mkdir(parents=True, exist_ok=True)
-        out_file.write_text(text, encoding="utf-8")
+        with open(out_file, "w", encoding="utf-8") as f:
+            formatter.write(directory, f)
         typer.echo(f"Saved to {out_file}", err=True)
 
 
