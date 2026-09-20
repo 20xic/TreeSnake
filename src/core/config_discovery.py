@@ -1,13 +1,8 @@
 from pathlib import Path
 
-CANDIDATE_NAMES: list[str] = [
-    "treesnake.json",
-    "treesnake.toml",
-    "treesnake.yaml",
-    "treesnake.yml",
-    ".env.treesnake",
-    ".treesnakeignore",
-]
+from .config_format import CANDIDATE_NAMES
+
+__all__ = ["CANDIDATE_NAMES", "ConfigDiscovery"]
 
 
 class ConfigDiscovery:

@@ -35,7 +35,8 @@ class TestInitGitignoreFlag:
     def test_flag_round_trips_through_every_format(self, tmp_path):
         cases = [
             ("env", ".env.treesnake"),
-            ("yaml", "treesnake.yml"),
+            ("yaml", "treesnake.yaml"),
+            ("yml", "treesnake.yml"),
             ("toml", "treesnake.toml"),
         ]
         for fmt, filename in cases:

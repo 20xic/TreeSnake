@@ -1,5 +1,9 @@
 from enum import Enum
 
+from core.config_format import ConfigFormat
+
+__all__ = ["ConfigFormat", "OutputDest", "OutputFormat"]
+
 
 class OutputFormat(str, Enum):
     default = "default"
@@ -12,11 +16,3 @@ class OutputDest(str, Enum):
     stdout = "stdout"
     file = "file"
     clipboard = "clipboard"
-
-
-class ConfigFormat(str, Enum):
-    env = "env"
-    json = "json"
-    yaml = "yaml"
-    toml = "toml"
-    yml = "yml"

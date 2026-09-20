@@ -1,11 +1,13 @@
-from abc import ABC, abstractmethod
+import os
 
 from models.scan_config import ScanConfig
 from models.scan_template import ScanTemplate
 
+from .config_format import ConfigFormat, config_filename
 from .creator import IContentCreator
 from .template_serializer import (
     EnvTemplateSerializer,
+    ITemplateSerializer,
     JsonTemplateSerializer,
     TomlTemplateSerializer,
     YamlTemplateSerializer,
@@ -38,37 +40,48 @@ DEFAULT_TEMPLATE = ScanTemplate(
     use_gitignore=True,
 )
 
-CONFIG_FILE_NAME = "treesnake"
+SERIALIZERS: dict[ConfigFormat, type[ITemplateSerializer]] = {
+    ConfigFormat.env: EnvTemplateSerializer,
+    ConfigFormat.json: JsonTemplateSerializer,
+    ConfigFormat.yaml: YamlTemplateSerializer,
+    ConfigFormat.yml: YamlTemplateSerializer,
+    ConfigFormat.toml: TomlTemplateSerializer,
+}
 
 
-class ITemplateCreator(ABC):
-    def __init__(self, file_creator: IContentCreator):
+class TemplateCreator:
+    """Пишет шаблон конфига в `<path>/<имя файла формата>`. Имя файла и
+    сериализатор берутся из реестра формата."""
+
+    def __init__(self, file_creator: IContentCreator, fmt: ConfigFormat):
         self._file_creator = file_creator
+        self._fmt = fmt
 
-    @abstractmethod
+    @property
+    def filename(self) -> str:
+        return config_filename(self._fmt)
+
     def create(self, path: str, template: ScanTemplate = DEFAULT_TEMPLATE) -> None:
-        raise NotImplementedError
+        content = SERIALIZERS[self._fmt]().serialize(template)
+        self._file_creator.create(os.path.join(path, self.filename), content=content)
 
 
-class EnvTemplateCreator(ITemplateCreator):
-    def create(self, path: str, template: ScanTemplate = DEFAULT_TEMPLATE) -> None:
-        content = EnvTemplateSerializer().serialize(template)
-        self._file_creator.create(f"{path}/.env.{CONFIG_FILE_NAME}", content=content)
+# Совместимые имена для конкретных форматов.
+class EnvTemplateCreator(TemplateCreator):
+    def __init__(self, file_creator: IContentCreator):
+        super().__init__(file_creator, ConfigFormat.env)
 
 
-class JsonTemplateCreator(ITemplateCreator):
-    def create(self, path: str, template: ScanTemplate = DEFAULT_TEMPLATE) -> None:
-        content = JsonTemplateSerializer().serialize(template)
-        self._file_creator.create(f"{path}/{CONFIG_FILE_NAME}.json", content=content)
+class JsonTemplateCreator(TemplateCreator):
+    def __init__(self, file_creator: IContentCreator):
+        super().__init__(file_creator, ConfigFormat.json)
 
 
-class YamlTemplateCreator(ITemplateCreator):
-    def create(self, path: str, template: ScanTemplate = DEFAULT_TEMPLATE) -> None:
-        content = YamlTemplateSerializer().serialize(template)
-        self._file_creator.create(f"{path}/{CONFIG_FILE_NAME}.yml", content=content)
+class YamlTemplateCreator(TemplateCreator):
+    def __init__(self, file_creator: IContentCreator):
+        super().__init__(file_creator, ConfigFormat.yml)
 
 
-class TomlTemplateCreator(ITemplateCreator):
-    def create(self, path: str, template: ScanTemplate = DEFAULT_TEMPLATE) -> None:
-        content = TomlTemplateSerializer().serialize(template)
-        self._file_creator.create(f"{path}/{CONFIG_FILE_NAME}.toml", content=content)
+class TomlTemplateCreator(TemplateCreator):
+    def __init__(self, file_creator: IContentCreator):
+        super().__init__(file_creator, ConfigFormat.toml)

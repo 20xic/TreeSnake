@@ -64,3 +64,20 @@ class TestConfigDiscovery:
         result = ConfigDiscovery().find(str(some_file))
 
         assert result == str(tmp_path / "treesnake.json")
+
+
+class TestRegistryConsistency:
+    """init, ConfigReader и ConfigDiscovery должны опираться на один список
+    имён — иначе созданный конфиг может не находиться автопоиском."""
+
+    def test_every_init_filename_is_discoverable_and_readable(self):
+        from core.config_format import CANDIDATE_NAMES, CONFIG_FILENAMES, ConfigFormat
+        from core.config_reader import ConfigReader
+
+        for fmt in ConfigFormat:
+            name = CONFIG_FILENAMES[fmt]
+            assert name in CANDIDATE_NAMES
+            reader = ConfigReader._readers_by_name.get(name) or (
+                ConfigReader._readers_by_ext.get(name[name.rfind(".") :])
+            )
+            assert reader is not None, name

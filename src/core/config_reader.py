@@ -2,6 +2,8 @@ import json
 import os
 import tomllib
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
+from typing import Any
 
 import yaml
 from dotenv import dotenv_values
@@ -9,6 +11,7 @@ from dotenv import dotenv_values
 from models import ScanConfig
 from models.scan_template import ScanTemplate
 
+from .config_format import CONFIG_FILENAMES, IGNORE_FILENAME, ConfigFormat
 from .gitignore_parser import GitignoreParser
 
 
@@ -16,6 +19,50 @@ class IConfigReader(ABC):
     @abstractmethod
     def read(self, path: str) -> ScanTemplate:
         raise NotImplementedError
+
+
+def _template_from_mapping(data: Mapping[str, Any], config: ScanConfig) -> ScanTemplate:
+    """Общая сборка ScanTemplate из плоского словаря верхнего уровня.
+    Пустые значения (`mode: ""`) трактуются как «не задано»."""
+    return ScanTemplate(
+        config=config,
+        mode=data.get("mode", "default") or "default",
+        output=data.get("output", "stdout") or "stdout",
+        out_file=data.get("out_file") or None,
+        use_gitignore=data.get("use_gitignore", True),
+    )
+
+
+class _StructuredConfigReader(IConfigReader):
+    """JSON/YAML/TOML: один и тот же разбор, отличается только загрузчик.
+    Принимает как `config:`-блок, так и поля ScanConfig прямо в корне."""
+
+    @abstractmethod
+    def _load(self, path: str) -> Mapping[str, Any]:
+        raise NotImplementedError
+
+    def read(self, path: str) -> ScanTemplate:
+        data = self._load(path) or {}
+        config = ScanConfig.model_validate(data.get("config", data))
+        return _template_from_mapping(data, config)
+
+
+class JsonConfigReader(_StructuredConfigReader):
+    def _load(self, path: str) -> Mapping[str, Any]:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+
+
+class YamlConfigReader(_StructuredConfigReader):
+    def _load(self, path: str) -> Mapping[str, Any]:
+        with open(path, encoding="utf-8") as f:
+            return yaml.safe_load(f)
+
+
+class TomlConfigReader(_StructuredConfigReader):
+    def _load(self, path: str) -> Mapping[str, Any]:
+        with open(path, "rb") as f:
+            return tomllib.load(f)
 
 
 class EnvConfigReader(IConfigReader):
@@ -46,59 +93,11 @@ class EnvConfigReader(IConfigReader):
                 data[field] = value
 
         config = ScanConfig.model_validate(data)
-        return ScanTemplate(
-            config=config,
-            mode=data.get("mode", "default") or "default",
-            output=data.get("output", "stdout") or "stdout",
-            out_file=data.get("out_file") or None,
-            use_gitignore=data.get("use_gitignore", True),
-        )
+        return _template_from_mapping(data, config)
 
     def _parse_list(self, value: str) -> list[str]:
         value = value.strip().strip("[]")
         return [item.strip() for item in value.split(",") if item.strip()]
-
-
-class YamlConfigReader(IConfigReader):
-    def read(self, path: str) -> ScanTemplate:
-        with open(path, encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-        config = ScanConfig.model_validate(data.get("config", data))
-        return ScanTemplate(
-            config=config,
-            mode=data.get("mode", "default") or "default",
-            output=data.get("output", "stdout") or "stdout",
-            out_file=data.get("out_file") or None,
-            use_gitignore=data.get("use_gitignore", True),
-        )
-
-
-class TomlConfigReader(IConfigReader):
-    def read(self, path: str) -> ScanTemplate:
-        with open(path, "rb") as f:
-            data = tomllib.load(f)
-        config = ScanConfig.model_validate(data.get("config", data))
-        return ScanTemplate(
-            config=config,
-            mode=data.get("mode", "default") or "default",
-            output=data.get("output", "stdout") or "stdout",
-            out_file=data.get("out_file") or None,
-            use_gitignore=data.get("use_gitignore", True),
-        )
-
-
-class JsonConfigReader(IConfigReader):
-    def read(self, path: str) -> ScanTemplate:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        config = ScanConfig.model_validate(data.get("config", data))
-        return ScanTemplate(
-            config=config,
-            mode=data.get("mode", "default") or "default",
-            output=data.get("output", "stdout") or "stdout",
-            out_file=data.get("out_file") or None,
-            use_gitignore=data.get("use_gitignore", True),
-        )
 
 
 class TreesnakeIgnoreConfigReader(IConfigReader):
@@ -113,17 +112,28 @@ class TreesnakeIgnoreConfigReader(IConfigReader):
         return ScanTemplate(config=config, mode="default", output="stdout")
 
 
+READERS: dict[ConfigFormat, type[IConfigReader]] = {
+    ConfigFormat.env: EnvConfigReader,
+    ConfigFormat.json: JsonConfigReader,
+    ConfigFormat.yaml: YamlConfigReader,
+    ConfigFormat.yml: YamlConfigReader,
+    ConfigFormat.toml: TomlConfigReader,
+}
+
+
 class ConfigReader(IConfigReader):
-    _readers_by_name = {
+    """Диспетчер: сначала по точному имени файла (`.env`, `.env.treesnake`,
+    `.treesnakeignore`), затем по расширению (`.json`/`.yml`/...)."""
+
+    _readers_by_name: dict[str, type[IConfigReader]] = {
         ".env": EnvConfigReader,
-        ".env.treesnake": EnvConfigReader,
-        ".treesnakeignore": TreesnakeIgnoreConfigReader,
+        CONFIG_FILENAMES[ConfigFormat.env]: EnvConfigReader,
+        IGNORE_FILENAME: TreesnakeIgnoreConfigReader,
     }
-    _readers_by_ext = {
-        ".yml": YamlConfigReader,
-        ".yaml": YamlConfigReader,
-        ".toml": TomlConfigReader,
-        ".json": JsonConfigReader,
+    _readers_by_ext: dict[str, type[IConfigReader]] = {
+        f".{fmt.value}": reader
+        for fmt, reader in READERS.items()
+        if fmt is not ConfigFormat.env
     }
 
     def read(self, path: str) -> ScanTemplate:

@@ -5,31 +5,9 @@ import typer
 
 from core.creator import FileCreator
 from core.gitignore_manager import GitignoreManager
-from core.template_creator import (
-    DEFAULT_TEMPLATE,
-    EnvTemplateCreator,
-    JsonTemplateCreator,
-    TomlTemplateCreator,
-    YamlTemplateCreator,
-)
+from core.template_creator import DEFAULT_TEMPLATE, TemplateCreator
 
 from ..types import ConfigFormat
-
-_CREATORS = {
-    ConfigFormat.env: EnvTemplateCreator,
-    ConfigFormat.json: JsonTemplateCreator,
-    ConfigFormat.yaml: YamlTemplateCreator,
-    ConfigFormat.yml: YamlTemplateCreator,
-    ConfigFormat.toml: TomlTemplateCreator,
-}
-
-_EXT_MAP = {
-    ConfigFormat.json: "treesnake.json",
-    ConfigFormat.yaml: "treesnake.yaml",
-    ConfigFormat.env: ".env.treesnake",
-    ConfigFormat.yml: "treesnake.yml",
-    ConfigFormat.toml: "treesnake.toml",
-}
 
 
 def init(
@@ -56,8 +34,9 @@ def init(
 ) -> None:
     path = path.resolve()
     template = DEFAULT_TEMPLATE.model_copy(update={"use_gitignore": use_gitignore})
-    _CREATORS[fmt](FileCreator()).create(str(path), template=template)
-    typer.echo(f"Created {path / _EXT_MAP[fmt]}")
+    creator = TemplateCreator(FileCreator(), fmt)
+    creator.create(str(path), template=template)
+    typer.echo(f"Created {path / creator.filename}")
 
     GitignoreManager(path / ".gitignore").update()
     typer.echo(f"Updated {path / '.gitignore'}")
