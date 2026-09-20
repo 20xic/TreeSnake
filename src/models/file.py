@@ -1,7 +1,8 @@
-from pydantic import BaseModel
+from dataclasses import dataclass
 
 
-class File(BaseModel):
+@dataclass(slots=True)
+class File:
     name: str
     content: str
     size: int

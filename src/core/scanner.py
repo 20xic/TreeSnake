@@ -2,9 +2,9 @@ import os
 from abc import ABC, abstractmethod
 
 from models import Directory, File, ScanConfig, ScanResult, ScanTimer
-from models.scan_config import CompiledRules
 
 from .file_reader import FileReader, IFileReader
+from .rule import CompiledRules
 
 CONTENT_EXCLUDED = ""
 
@@ -25,7 +25,7 @@ class BaseScanner(IScanner):
 
     def scan(self, path: str, config: ScanConfig) -> ScanResult:
         timer = ScanTimer()
-        rules = config.compile()
+        rules = CompiledRules.from_config(config)
         directory = self._scan_recursive(os.path.normpath(path), rules)
         elapsed = timer.stop()
         file_count, dir_count = self._count(directory)
@@ -42,7 +42,7 @@ class BaseScanner(IScanner):
         name = os.path.basename(path)
 
         if rules.max_depth is not None and depth > rules.max_depth:
-            return Directory(name=name, files=[], subdirectories=[])
+            return Directory(name=name)
 
         # Один проход scandir вместо listdir + isfile + isdir + getsize на каждый
         # элемент: DirEntry отдаёт тип (и на Windows — stat) из результата
@@ -51,7 +51,7 @@ class BaseScanner(IScanner):
             with os.scandir(path) as it:
                 entries = list(it)
         except PermissionError:
-            return Directory(name=name, files=[], subdirectories=[])
+            return Directory(name=name)
 
         files: list[File] = []
         subdirectories: list[Directory] = []
@@ -91,7 +91,7 @@ class BaseScanner(IScanner):
         if rules.include_dirs.rules and not rules.include_dirs.matches(name):
             return None
         if rules.exclude_content_dirs.matches(name):
-            return Directory(name=name, files=[], subdirectories=[])
+            return Directory(name=name)
         return self._scan_recursive(entry.path, rules, depth + 1)
 
     def _count(self, directory: Directory) -> tuple[int, int]:

@@ -1,6 +1,9 @@
 import fnmatch
 import re
 from abc import ABC, abstractmethod
+from typing import NamedTuple
+
+from models import ScanConfig
 
 
 class IRule(ABC):
@@ -66,3 +69,29 @@ class RuleSet:
             else:
                 rules.append(ExactRule(pattern))
         return cls(rules)
+
+
+class CompiledRules(NamedTuple):
+    """ScanConfig, скомпилированный в RuleSet'ы — то, с чем работает сканер."""
+
+    exclude_dirs: RuleSet
+    exclude_files: RuleSet
+    exclude_content_dirs: RuleSet
+    exclude_content_files: RuleSet
+    include_dirs: RuleSet
+    include_files: RuleSet
+    max_depth: int | None
+    max_file_size: int | None
+
+    @classmethod
+    def from_config(cls, config: ScanConfig) -> "CompiledRules":
+        return cls(
+            exclude_dirs=RuleSet.from_patterns(config.exclude_dirs),
+            exclude_files=RuleSet.from_patterns(config.exclude_files),
+            exclude_content_dirs=RuleSet.from_patterns(config.exclude_content_dirs),
+            exclude_content_files=RuleSet.from_patterns(config.exclude_content_files),
+            include_dirs=RuleSet.from_patterns(config.include_dirs),
+            include_files=RuleSet.from_patterns(config.include_files),
+            max_depth=config.max_depth,
+            max_file_size=config.max_file_size,
+        )
