@@ -67,6 +67,7 @@ jobs:
   build:
     needs: bump
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
         include:
@@ -107,7 +108,7 @@ jobs:
         shell: bash
         run: |
           ./dist/${{ matrix.artifact }} version
-          ./dist/${{ matrix.artifact }} scan src --only-tree > /dev/null
+          ./dist/${{ matrix.artifact }} scan src --fmt default --output stdout --only-tree > /dev/null
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
