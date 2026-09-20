@@ -36,7 +36,9 @@ class BaseScanner(IScanner):
             dir_count=dir_count,
         )
 
-    def _scan_recursive(self, path: str, rules: CompiledRules, depth: int = 0) -> Directory:
+    def _scan_recursive(
+        self, path: str, rules: CompiledRules, depth: int = 0
+    ) -> Directory:
         name = os.path.basename(path)
 
         if rules.max_depth is not None and depth > rules.max_depth:

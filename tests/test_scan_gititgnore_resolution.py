@@ -45,7 +45,15 @@ class TestScanUseGitignoreResolution:
 
         result = runner.invoke(
             app,
-            ["scan", str(tmp_path), "--no-gitignore", "--fmt", "json", "--output", "stdout"],
+            [
+                "scan",
+                str(tmp_path),
+                "--no-gitignore",
+                "--fmt",
+                "json",
+                "--output",
+                "stdout",
+            ],
         )
 
         assert result.exit_code == 0

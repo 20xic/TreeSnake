@@ -1,10 +1,10 @@
 from pathlib import Path
-from typing import List, NamedTuple, Optional
+from typing import NamedTuple
 
 
 class GitignorePatterns(NamedTuple):
-    dirs: List[str]
-    files: List[str]
+    dirs: list[str]
+    files: list[str]
 
 
 class GitignoreParser:
@@ -39,8 +39,8 @@ class GitignoreParser:
         except OSError:
             return GitignorePatterns(dirs=[], files=[])
 
-        dirs: List[str] = []
-        files: List[str] = []
+        dirs: list[str] = []
+        files: list[str] = []
 
         for raw_line in lines:
             pattern = self._clean(raw_line)
@@ -55,19 +55,18 @@ class GitignoreParser:
 
         return GitignorePatterns(dirs=dirs, files=files)
 
-    def _clean(self, raw_line: str) -> Optional[str]:
+    def _clean(self, raw_line: str) -> str | None:
         line = raw_line.strip()
 
         if not line or line.startswith("#"):
             return None
         if line.startswith("!"):
             return None
-        if line.startswith("/"):
-            line = line[1:]
+        line = line.removeprefix("/")
         if not line:
             return None
 
-        bare = line[:-1] if line.endswith("/") else line
+        bare = line.removesuffix("/")
         if "/" in bare:
             return None
 

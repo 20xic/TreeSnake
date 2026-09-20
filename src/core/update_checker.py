@@ -3,7 +3,6 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Optional, Tuple
 
 GITHUB_RELEASES_URL = "https://api.github.com/repos/20xic/treesnake/releases/latest"
 DEFAULT_CACHE_PATH = Path.home() / ".treesnake" / "update_check.json"
@@ -11,7 +10,7 @@ CACHE_TTL_SECONDS = 24 * 60 * 60
 REQUEST_TIMEOUT_SECONDS = 2
 
 
-def _parse_version(version: str) -> Tuple[int, ...]:
+def _parse_version(version: str) -> tuple[int, ...]:
     """Parses a dotted version string into a tuple of ints for comparison.
 
     Best-effort: non-numeric prefixes within a segment (e.g. "1.0.0-rc1")
@@ -60,8 +59,8 @@ class UpdateChecker:
     def __init__(self, current_version: str, cache_path: Path = DEFAULT_CACHE_PATH):
         self._current_version = current_version
         self._cache_path = cache_path
-        self.latest_version: Optional[str] = None
-        self.release_url: Optional[str] = None
+        self.latest_version: str | None = None
+        self.release_url: str | None = None
 
     def check(self) -> None:
         try:
@@ -88,7 +87,7 @@ class UpdateChecker:
             return False
         return _is_newer(self.latest_version, self._current_version)
 
-    def _read_cache(self) -> Optional[dict]:
+    def _read_cache(self) -> dict | None:
         if not self._cache_path.exists():
             return None
         try:
@@ -99,7 +98,7 @@ class UpdateChecker:
             return None
         return data
 
-    def _write_cache(self, latest_version: str, release_url: Optional[str]) -> None:
+    def _write_cache(self, latest_version: str, release_url: str | None) -> None:
         self._cache_path.parent.mkdir(parents=True, exist_ok=True)
         self._cache_path.write_text(
             json.dumps(
@@ -112,12 +111,14 @@ class UpdateChecker:
             encoding="utf-8",
         )
 
-    def _fetch(self) -> Tuple[Optional[str], Optional[str]]:
+    def _fetch(self) -> tuple[str | None, str | None]:
         request = urllib.request.Request(
             GITHUB_RELEASES_URL,
             headers={"Accept": "application/vnd.github+json"},
         )
-        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+        with urllib.request.urlopen(
+            request, timeout=REQUEST_TIMEOUT_SECONDS
+        ) as response:
             data = json.loads(response.read().decode("utf-8"))
 
         tag = data.get("tag_name") or ""

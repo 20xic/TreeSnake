@@ -154,11 +154,13 @@ class TestMacOSClipboard:
     def test_raises_on_pbcopy_failure(self):
         import subprocess
 
-        with patch(
-            "subprocess.run", side_effect=subprocess.CalledProcessError(1, "pbcopy")
+        with (
+            patch(
+                "subprocess.run", side_effect=subprocess.CalledProcessError(1, "pbcopy")
+            ),
+            pytest.raises(RuntimeError, match="pbcopy failed"),
         ):
-            with pytest.raises(RuntimeError, match="pbcopy failed"):
-                MacOSClipboard().copy("hello")
+            MacOSClipboard().copy("hello")
 
 
 class TestLinuxClipboard:

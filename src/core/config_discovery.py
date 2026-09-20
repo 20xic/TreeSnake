@@ -1,7 +1,6 @@
 from pathlib import Path
-from typing import List, Optional
 
-CANDIDATE_NAMES: List[str] = [
+CANDIDATE_NAMES: list[str] = [
     "treesnake.json",
     "treesnake.toml",
     "treesnake.yaml",
@@ -16,7 +15,7 @@ class ConfigDiscovery:
     directory tree from a starting path, stopping at the first match in
     CANDIDATE_NAMES priority order."""
 
-    def find(self, start_path: str) -> Optional[str]:
+    def find(self, start_path: str) -> str | None:
         current = Path(start_path).resolve()
         if current.is_file():
             current = current.parent

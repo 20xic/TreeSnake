@@ -4,4 +4,4 @@ from .scan_config import ScanConfig
 from .scan_result import ScanResult, ScanTimer
 from .scan_template import ScanTemplate
 
-__all__ = ["File", "ScanConfig", "Directory", "ScanTemplate", "ScanResult", "ScanTimer"]
+__all__ = ["Directory", "File", "ScanConfig", "ScanResult", "ScanTemplate", "ScanTimer"]

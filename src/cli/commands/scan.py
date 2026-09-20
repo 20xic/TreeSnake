@@ -1,6 +1,6 @@
 from pathlib import Path
 from threading import Thread
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -65,7 +65,7 @@ def scan(
         typer.Argument(help="Directory to scan."),
     ] = Path("."),
     config: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--config",
             "-c",
@@ -74,39 +74,55 @@ def scan(
         ),
     ] = None,
     exclude_dirs: Annotated[
-        Optional[list[str]],
-        typer.Option("--exclude-dir", "-ed", help="Directory names to exclude. Repeatable."),
+        list[str] | None,
+        typer.Option(
+            "--exclude-dir", "-ed", help="Directory names to exclude. Repeatable."
+        ),
     ] = None,
     exclude_files: Annotated[
-        Optional[list[str]],
-        typer.Option("--exclude-file", "-ef", help="File names/patterns to exclude. Repeatable."),
+        list[str] | None,
+        typer.Option(
+            "--exclude-file", "-ef", help="File names/patterns to exclude. Repeatable."
+        ),
     ] = None,
     exclude_content_dirs: Annotated[
-        Optional[list[str]],
-        typer.Option("--no-content-dir", "-ncd", help="Dirs to list without content. Repeatable."),
+        list[str] | None,
+        typer.Option(
+            "--no-content-dir", "-ncd", help="Dirs to list without content. Repeatable."
+        ),
     ] = None,
     exclude_content_files: Annotated[
-        Optional[list[str]],
-        typer.Option("--no-content-file", "-ncf", help="Files to list without content. Repeatable."),
+        list[str] | None,
+        typer.Option(
+            "--no-content-file",
+            "-ncf",
+            help="Files to list without content. Repeatable.",
+        ),
     ] = None,
     include_dirs: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         typer.Option(
-            "--include-dir", "-id", help="Only include directories matching these names/patterns. Repeatable."
+            "--include-dir",
+            "-id",
+            help="Only include directories matching these names/patterns. Repeatable.",
         ),
     ] = None,
     include_files: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         typer.Option(
-            "--include-file", "-if", help="Only include files matching these names/patterns. Repeatable."
+            "--include-file",
+            "-if",
+            help="Only include files matching these names/patterns. Repeatable.",
         ),
     ] = None,
     max_depth: Annotated[
-        Optional[int],
-        typer.Option("--max-depth", help="Limit recursion depth of the directory walk."),
+        int | None,
+        typer.Option(
+            "--max-depth", help="Limit recursion depth of the directory walk."
+        ),
     ] = None,
     max_file_size: Annotated[
-        Optional[int],
+        int | None,
         typer.Option(
             "--max-file-size",
             help="Files larger than this size (bytes) are listed with a placeholder instead of their content.",
@@ -115,11 +131,12 @@ def scan(
     only_tree: Annotated[
         bool,
         typer.Option(
-            "--only-tree", help="Output only the directory structure, without file content."
+            "--only-tree",
+            help="Output only the directory structure, without file content.",
         ),
     ] = False,
     use_gitignore: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option(
             "--gitignore/--no-gitignore",
             help=(
@@ -132,17 +149,17 @@ def scan(
         ),
     ] = None,
     fmt: Annotated[
-        Optional[OutputFormat],
+        OutputFormat | None,
         typer.Option("--fmt", "-f", help="Output format. Overrides config."),
     ] = None,
     output: Annotated[
-        Optional[OutputDest],
+        OutputDest | None,
         typer.Option(
             "--output", "-o", help="Where to send the result. Overrides config."
         ),
     ] = None,
     out_file: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--out-file", help="Output file path (required when --output=file)."
         ),
@@ -175,7 +192,7 @@ def scan(
         typer.echo(f"Path does not exist or is not a directory: {path}", err=True)
         raise typer.Exit(1)
 
-    template: Optional[ScanTemplate] = None
+    template: ScanTemplate | None = None
 
     if config is not None:
         config = config.resolve()

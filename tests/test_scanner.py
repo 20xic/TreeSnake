@@ -90,7 +90,9 @@ class TestBaseScanner:
 
         result = scanner.scan(str(tmp_path), empty_config)
 
-        locked_dir = next(d for d in result.directory.subdirectories if d.name == "locked")
+        locked_dir = next(
+            d for d in result.directory.subdirectories if d.name == "locked"
+        )
         assert locked_dir.files == []
         locked.chmod(0o755)
 

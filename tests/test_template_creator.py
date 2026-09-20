@@ -91,7 +91,9 @@ class TestTemplateRoundTrip:
     into the original settings."""
 
     @pytest.mark.parametrize("fmt", ["env", "json", "yaml", "toml"])
-    def test_exclude_lists_survive_round_trip(self, tmp_path, creator_and_extension, fmt):
+    def test_exclude_lists_survive_round_trip(
+        self, tmp_path, creator_and_extension, fmt
+    ):
         creator, filename = creator_and_extension[fmt]
         template = ScanTemplate(
             config=ScanConfig(

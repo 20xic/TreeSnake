@@ -23,7 +23,9 @@ class EnvTemplateSerializer(ITemplateSerializer):
         data = template.model_dump()
         config_data = data.pop("config")
 
-        lines = [self._format_field(field, value) for field, value in config_data.items()]
+        lines = [
+            self._format_field(field, value) for field, value in config_data.items()
+        ]
         lines.extend(self._format_field(field, value) for field, value in data.items())
         return "\n".join(lines)
 

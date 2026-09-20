@@ -1,4 +1,5 @@
-from typing import List, NamedTuple, Optional
+from typing import NamedTuple
+
 from pydantic import BaseModel, ConfigDict
 
 from core.rule import RuleSet
@@ -11,24 +12,24 @@ class CompiledRules(NamedTuple):
     exclude_content_files: "RuleSet"
     include_dirs: "RuleSet"
     include_files: "RuleSet"
-    max_depth: Optional[int]
-    max_file_size: Optional[int]
+    max_depth: int | None
+    max_file_size: int | None
 
 
 class ScanConfig(BaseModel):
-    exclude_dirs: List[str] = []
-    exclude_files: List[str] = []
-    exclude_content_dirs: List[str] = []
-    exclude_content_files: List[str] = []
-    include_dirs: List[str] = []
-    include_files: List[str] = []
-    max_depth: Optional[int] = None
-    max_file_size: Optional[int] = None
+    exclude_dirs: list[str] = []
+    exclude_files: list[str] = []
+    exclude_content_dirs: list[str] = []
+    exclude_content_files: list[str] = []
+    include_dirs: list[str] = []
+    include_files: list[str] = []
+    max_depth: int | None = None
+    max_file_size: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
     def compile(self) -> "CompiledRules":
-        
+
         return CompiledRules(
             exclude_dirs=RuleSet.from_patterns(self.exclude_dirs),
             exclude_files=RuleSet.from_patterns(self.exclude_files),

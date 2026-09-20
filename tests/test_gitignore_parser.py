@@ -30,7 +30,9 @@ class TestGitignoreParser:
 
     def test_comments_are_skipped(self, tmp_path):
         gitignore = tmp_path / ".gitignore"
-        gitignore.write_text("# build artifacts\ndist/\n# logs\n*.log\n", encoding="utf-8")
+        gitignore.write_text(
+            "# build artifacts\ndist/\n# logs\n*.log\n", encoding="utf-8"
+        )
 
         result = GitignoreParser().parse(str(gitignore))
 

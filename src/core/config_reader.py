@@ -2,7 +2,6 @@ import json
 import os
 import tomllib
 from abc import ABC, abstractmethod
-from typing import List
 
 import yaml
 from dotenv import dotenv_values
@@ -55,7 +54,7 @@ class EnvConfigReader(IConfigReader):
             use_gitignore=data.get("use_gitignore", True),
         )
 
-    def _parse_list(self, value: str) -> List[str]:
+    def _parse_list(self, value: str) -> list[str]:
         value = value.strip().strip("[]")
         return [item.strip() for item in value.split(",") if item.strip()]
 

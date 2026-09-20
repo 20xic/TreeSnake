@@ -1,7 +1,7 @@
+import io
 import json
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
-import io
 
 from models import Directory, File
 

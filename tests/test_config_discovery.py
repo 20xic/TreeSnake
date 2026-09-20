@@ -42,10 +42,14 @@ class TestConfigDiscovery:
         assert result == str(tmp_path / ".treesnakeignore")
 
     def test_closer_config_wins_over_one_higher_up(self, tmp_path):
-        (tmp_path / "treesnake.json").write_text('{"config": {"exclude_dirs": ["outer"]}}', encoding="utf-8")
+        (tmp_path / "treesnake.json").write_text(
+            '{"config": {"exclude_dirs": ["outer"]}}', encoding="utf-8"
+        )
         nested = tmp_path / "nested"
         nested.mkdir()
-        (nested / "treesnake.json").write_text('{"config": {"exclude_dirs": ["inner"]}}', encoding="utf-8")
+        (nested / "treesnake.json").write_text(
+            '{"config": {"exclude_dirs": ["inner"]}}', encoding="utf-8"
+        )
 
         result = ConfigDiscovery().find(str(nested))
 

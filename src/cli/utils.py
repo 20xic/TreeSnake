@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -19,7 +18,7 @@ def get_formatter(fmt: OutputFormat):
     return DefaultFormatter()
 
 
-def write_output(text: str, dest: OutputDest, out_file: Optional[Path]) -> None:
+def write_output(text: str, dest: OutputDest, out_file: Path | None) -> None:
     if dest == OutputDest.stdout:
         typer.echo(text)
 
@@ -52,10 +51,10 @@ def build_config(
     exclude_files: list[str],
     exclude_content_dirs: list[str],
     exclude_content_files: list[str],
-    include_dirs: Optional[list[str]] = None,
-    include_files: Optional[list[str]] = None,
-    max_depth: Optional[int] = None,
-    max_file_size: Optional[int] = None,
+    include_dirs: list[str] | None = None,
+    include_files: list[str] | None = None,
+    max_depth: int | None = None,
+    max_file_size: int | None = None,
 ) -> ScanConfig:
     return ScanConfig(
         exclude_dirs=_split_values(exclude_dirs),
