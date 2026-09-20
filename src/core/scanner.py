@@ -46,10 +46,12 @@ class BaseScanner(IScanner):
 
         # Один проход scandir вместо listdir + isfile + isdir + getsize на каждый
         # элемент: DirEntry отдаёт тип (и на Windows — stat) из результата
-        # листинга без дополнительных syscall'ов.
+        # листинга без дополнительных syscall'ов. Сортируем по имени, чтобы
+        # вывод не зависел от порядка, в котором ФС отдаёт элементы (ext4 —
+        # произвольный, NTFS — алфавитный).
         try:
             with os.scandir(path) as it:
-                entries = list(it)
+                entries = sorted(it, key=lambda e: e.name)
         except PermissionError:
             return Directory(name=name)
 

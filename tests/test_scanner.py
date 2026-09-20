@@ -217,3 +217,23 @@ class TestScanResult:
 
         assert result.file_count == 2
         assert result.dir_count == 1
+
+    def test_entries_sorted_by_name(self, tmp_path, scanner, empty_config):
+        for name in ("zeta.txt", "alpha.txt", "Beta.txt"):
+            (tmp_path / name).write_text("x")
+        for name in ("zdir", "adir", "Mdir"):
+            (tmp_path / name).mkdir()
+
+        result = scanner.scan(str(tmp_path), empty_config)
+
+        # bytewise order (как git и ls в C-локали): заглавные раньше строчных
+        assert [f.name for f in result.directory.files] == [
+            "Beta.txt",
+            "alpha.txt",
+            "zeta.txt",
+        ]
+        assert [d.name for d in result.directory.subdirectories] == [
+            "Mdir",
+            "adir",
+            "zdir",
+        ]
