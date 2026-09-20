@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 Entries are generated from [Conventional Commits](https://www.conventionalcommits.org/) by `cz bump`.
 
+## v0.4.2 (2026-09-20)
+
+### Fix
+
+- **cli**: force UTF-8 stdout/stderr so redirected output does not crash on Windows
+
 ## v0.4.1 (2026-09-20)
 
 ### Added
