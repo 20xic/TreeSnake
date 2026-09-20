@@ -43,7 +43,7 @@ treesnake scans a directory tree and exports its structure and file contents in 
 
 ## Features
 
-- **Three output formats** — human-readable tree, LLM-optimized text, or JSON
+- **Four output formats** — human-readable tree, LLM-optimized text, nested XML, or JSON
 - **Three output destinations** — stdout, file, or clipboard
 - **Flexible filtering** — exclude dirs, files, or just their content via patterns, globs, or regex
 - **Config file support** — store your settings in `.env`, `.yml`, `.toml`, or `.json`
@@ -96,7 +96,7 @@ treesnake scan [PATH] [OPTIONS]
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--config PATH` | `-c` | Path to a config file. Overrides inline options. |
-| `--fmt` | `-f` | Output format: `default`, `llm`, `json` |
+| `--fmt` | `-f` | Output format: `default`, `llm`, `xml`, `json` |
 | `--output` | `-o` | Destination: `stdout`, `file`, `clipboard` |
 | `--out-file PATH` | | Output file path (required when `--output=file`) |
 | `--exclude-dir` | `-ed` | Exclude a directory entirely. Repeatable. |
@@ -108,7 +108,22 @@ treesnake scan [PATH] [OPTIONS]
 
 - `default` — indented tree with file sizes, human-readable
 - `llm` — token-efficient format with file paths as headers, ideal for LLM context
+- `xml` — nested `<project>`/`<directory>`/`<file>` tree; makes the hierarchy explicit for an LLM, each file carries its full `path`, and content is kept verbatim in CDATA
 - `json` — structured JSON, useful for piping into other tools
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="myapp">
+  <file name="main.py" path="myapp/main.py" size="42"><![CDATA[
+print("hello")
+]]></file>
+  <directory name="core">
+    <file name="scanner.py" path="myapp/core/scanner.py" size="1204"><![CDATA[
+...
+]]></file>
+  </directory>
+</project>
+```
 
 **Filtering patterns:**
 
