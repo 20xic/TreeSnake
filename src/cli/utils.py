@@ -65,25 +65,14 @@ def _split_values(values: list[str]) -> list[str]:
     return result
 
 
-def build_config(
-    exclude_dirs: list[str],
-    exclude_files: list[str],
-    exclude_content_dirs: list[str],
-    exclude_content_files: list[str],
-    include_dirs: list[str] | None = None,
-    include_files: list[str] | None = None,
-    max_depth: int | None = None,
-    max_file_size: int | None = None,
-) -> ScanConfig:
+def build_config(**fields: list[str] | int | None) -> ScanConfig:
+    """ScanConfig из CLI-значений. Списки дополнительно режутся по пробелам:
+    `--exclude-dir ".git venv"` — то же, что два флага."""
     return ScanConfig(
-        exclude_dirs=_split_values(exclude_dirs),
-        exclude_files=_split_values(exclude_files),
-        exclude_content_dirs=_split_values(exclude_content_dirs),
-        exclude_content_files=_split_values(exclude_content_files),
-        include_dirs=_split_values(include_dirs or []),
-        include_files=_split_values(include_files or []),
-        max_depth=max_depth,
-        max_file_size=max_file_size,
+        **{
+            key: _split_values(value) if isinstance(value, list) else value
+            for key, value in fields.items()
+        }
     )
 
 

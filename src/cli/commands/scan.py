@@ -13,8 +13,9 @@ from core.update_checker import REQUEST_TIMEOUT_SECONDS, UpdateChecker
 from models import ScanResult, ScanTimer
 from models.scan_template import ScanTemplate
 
+from ..resolve import CliFilters, ScanOptions, resolve_options
 from ..types import OutputDest, OutputFormat
-from ..utils import apply_gitignore, build_config, get_formatter, write_output
+from ..utils import get_formatter, write_output
 
 
 def _print_stats(
@@ -55,6 +56,60 @@ def _print_update_notice(
         f"  {update_checker.release_url}",
         style="yellow",
     )
+
+
+def load_template(config: Path | None, project_root: Path) -> ScanTemplate | None:
+    """Явный `--config` обязан прочитаться (иначе выход с ошибкой);
+    автоматически найденный — лишь предупреждение, скан идёт с дефолтами."""
+    if config is not None:
+        config = config.resolve()
+        if not config.exists():
+            typer.echo(f"Config file not found: {config}", err=True)
+            raise typer.Exit(1)
+        try:
+            return ConfigReader().read(str(config))
+        except Exception as exc:
+            typer.echo(f"Failed to read config: {exc}", err=True)
+            raise typer.Exit(1) from exc
+
+    discovered = ConfigDiscovery().find(str(project_root))
+    if discovered is None:
+        return None
+    try:
+        return ConfigReader().read(discovered)
+    except Exception as exc:
+        typer.echo(f"Warning: ignoring discovered config {discovered}: {exc}", err=True)
+        return None
+
+
+def run_pipeline(path: Path, options: ScanOptions) -> tuple[ScanResult, float]:
+    """scan -> format -> write. Возвращает результат скана и время вывода."""
+    try:
+        scan_result = BaseScanner().scan(str(path), options.scan_config)
+    except OSError as exc:
+        typer.echo(f"Scan failed: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    except Exception as exc:
+        typer.echo(f"Unexpected error during scan: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    output_timer = ScanTimer()
+    try:
+        write_output(
+            get_formatter(options.fmt),
+            scan_result.directory,
+            options.output,
+            options.out_file,
+        )
+    except typer.Exit:
+        raise
+    except OSError as exc:
+        typer.echo(f"Failed to write output: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    except Exception as exc:
+        typer.echo(f"Failed to format output: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    return scan_result, output_timer.stop()
 
 
 def scan(
@@ -174,124 +229,33 @@ def scan(
     update_thread = Thread(target=update_checker.check)
     update_thread.start()
 
-    exclude_dirs = exclude_dirs or []
-    exclude_files = exclude_files or []
-    exclude_content_dirs = exclude_content_dirs or []
-    exclude_content_files = exclude_content_files or []
-    include_dirs = include_dirs or []
-    include_files = include_files or []
-
-    if only_tree:
-        exclude_content_files = [*exclude_content_files, "*"]
-
     path = path.resolve()
-
     if not path.exists() or not path.is_dir():
         typer.echo(f"Path does not exist or is not a directory: {path}", err=True)
         raise typer.Exit(1)
 
-    template: ScanTemplate | None = None
-
-    if config is not None:
-        config = config.resolve()
-        if not config.exists():
-            typer.echo(f"Config file not found: {config}", err=True)
-            raise typer.Exit(1)
-        try:
-            template = ConfigReader().read(str(config))
-        except Exception as exc:
-            typer.echo(f"Failed to read config: {exc}", err=True)
-            raise typer.Exit(1) from exc
-    else:
-        discovered_config = ConfigDiscovery().find(str(path))
-        if discovered_config is not None:
-            try:
-                template = ConfigReader().read(discovered_config)
-            except Exception as exc:
-                typer.echo(
-                    f"Warning: ignoring discovered config {discovered_config}: {exc}",
-                    err=True,
-                )
-
-    has_cli_overrides = any(
-        [
-            exclude_dirs,
-            exclude_files,
-            exclude_content_dirs,
-            exclude_content_files,
-            include_dirs,
-            include_files,
-            max_depth is not None,
-            max_file_size is not None,
-        ]
-    )
-
-    if has_cli_overrides:
-        scan_config = build_config(
-            exclude_dirs=list(exclude_dirs),
-            exclude_files=list(exclude_files),
-            exclude_content_dirs=list(exclude_content_dirs),
-            exclude_content_files=list(exclude_content_files),
-            include_dirs=list(include_dirs),
-            include_files=list(include_files),
+    template = load_template(config, path)
+    options = resolve_options(
+        template,
+        CliFilters(
+            exclude_dirs=exclude_dirs or [],
+            exclude_files=exclude_files or [],
+            exclude_content_dirs=exclude_content_dirs or [],
+            exclude_content_files=exclude_content_files or [],
+            include_dirs=include_dirs or [],
+            include_files=include_files or [],
             max_depth=max_depth,
             max_file_size=max_file_size,
-        )
-    elif template is not None:
-        scan_config = template.config
-    else:
-        scan_config = build_config([], [], [], [])
+        ),
+        only_tree=only_tree,
+        use_gitignore=use_gitignore,
+        fmt=fmt,
+        output=output,
+        out_file=out_file,
+        project_root=path,
+    )
 
-    if use_gitignore is None and template is not None:
-        use_gitignore = template.use_gitignore
-    if use_gitignore is None:
-        use_gitignore = True
-
-    if use_gitignore:
-        scan_config = apply_gitignore(scan_config, path)
-
-    resolved_fmt = fmt
-    if resolved_fmt is None and template is not None:
-        resolved_fmt = OutputFormat(template.mode)
-    if resolved_fmt is None:
-        resolved_fmt = OutputFormat.default
-
-    resolved_output = output
-    if resolved_output is None and template is not None:
-        resolved_output = OutputDest(template.output)
-    if resolved_output is None:
-        resolved_output = OutputDest.stdout
-
-    resolved_out_file = out_file
-    if resolved_out_file is None and template is not None and template.out_file:
-        resolved_out_file = Path(template.out_file)
-
-    try:
-        scan_result = BaseScanner().scan(str(path), scan_config)
-    except OSError as exc:
-        typer.echo(f"Scan failed: {exc}", err=True)
-        raise typer.Exit(1) from exc
-    except Exception as exc:
-        typer.echo(f"Unexpected error during scan: {exc}", err=True)
-        raise typer.Exit(1) from exc
-
-    output_timer = ScanTimer()
-    try:
-        write_output(
-            get_formatter(resolved_fmt),
-            scan_result.directory,
-            resolved_output,
-            resolved_out_file,
-        )
-    except typer.Exit:
-        raise
-    except OSError as exc:
-        typer.echo(f"Failed to write output: {exc}", err=True)
-        raise typer.Exit(1) from exc
-    except Exception as exc:
-        typer.echo(f"Failed to format output: {exc}", err=True)
-        raise typer.Exit(1) from exc
-    output_elapsed = output_timer.stop()
+    scan_result, output_elapsed = run_pipeline(path, options)
 
     _print_stats(scan_result, output_elapsed, total_timer.stop(), stat)
 
