@@ -3,7 +3,12 @@ from pathlib import Path
 import typer
 
 from core.clipboard import Clipboard
-from core.formatter import DefaultFormatter, JsonStringFormatter, LLMFormatter
+from core.formatter import (
+    DefaultFormatter,
+    JsonStringFormatter,
+    LLMFormatter,
+    XmlFormatter,
+)
 from core.gitignore_parser import GitignoreParser
 from models import ScanConfig
 
@@ -15,6 +20,8 @@ def get_formatter(fmt: OutputFormat):
         return LLMFormatter()
     if fmt == OutputFormat.json:
         return JsonStringFormatter()
+    if fmt == OutputFormat.xml:
+        return XmlFormatter()
     return DefaultFormatter()
 
 

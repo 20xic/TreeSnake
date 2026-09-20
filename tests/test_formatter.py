@@ -1,4 +1,5 @@
 import json
+import xml.etree.ElementTree as ET
 
 import pytest
 
@@ -7,6 +8,7 @@ from core.formatter import (
     JsonFormatter,
     JsonStringFormatter,
     LLMFormatter,
+    XmlFormatter,
 )
 from models import Directory, File
 
@@ -126,6 +128,84 @@ class TestLLMFormatter:
         result = LLMFormatter().format(simple_directory)
         assert "📁" not in result
         assert "📄" not in result
+
+
+class TestXmlFormatter:
+    def test_valid_xml_with_declaration(self, nested_directory):
+        result = XmlFormatter().format(nested_directory)
+        assert result.startswith('<?xml version="1.0" encoding="UTF-8"?>')
+        root = ET.fromstring(result)
+        assert root.tag == "project"
+        assert root.get("name") == "root"
+
+    def test_files_carry_name_path_size(self, simple_directory):
+        root = ET.fromstring(XmlFormatter().format(simple_directory))
+        main = root.find("file[@name='main.py']")
+        assert main is not None
+        assert main.get("path") == "root/main.py"
+        assert main.get("size") == "14"
+
+    def test_content_preserved_verbatim(self, simple_directory):
+        root = ET.fromstring(XmlFormatter().format(simple_directory))
+        main = root.find("file[@name='main.py']")
+        assert main.text.strip() == "print('hello')"
+
+    def test_empty_file_is_self_closing(self, simple_directory):
+        result = XmlFormatter().format(simple_directory)
+        assert '<file name="empty.py" path="root/empty.py" size="0" />' in result
+
+    def test_nested_directories(self, nested_directory):
+        root = ET.fromstring(XmlFormatter().format(nested_directory))
+        core = root.find("directory[@name='core']")
+        assert core is not None
+        utils = core.find("directory[@name='utils']")
+        assert utils is not None
+        helper = utils.find("file[@name='helper.py']")
+        assert helper.get("path") == "root/core/utils/helper.py"
+
+    def test_empty_directory_is_self_closing(self):
+        directory = Directory(
+            name="root",
+            files=[],
+            subdirectories=[Directory(name="dist", files=[], subdirectories=[])],
+        )
+        result = XmlFormatter().format(directory)
+        assert '<directory name="dist" />' in result
+
+    def test_content_is_not_entity_escaped(self):
+        directory = Directory(
+            name="root",
+            files=[File(name="a.html", content="<b>x & y</b>", size=12)],
+            subdirectories=[],
+        )
+        result = XmlFormatter().format(directory)
+        assert "<b>x & y</b>" in result
+        assert "&lt;" not in result
+        assert ET.fromstring(result).find("file").text.strip() == "<b>x & y</b>"
+
+    def test_cdata_terminator_in_content_survives_round_trip(self):
+        content = "a]]>b"
+        directory = Directory(
+            name="root",
+            files=[File(name="x.txt", content=content, size=5)],
+            subdirectories=[],
+        )
+        result = XmlFormatter().format(directory)
+        assert ET.fromstring(result).find("file").text.strip() == content
+
+    def test_special_chars_in_names_are_escaped(self):
+        directory = Directory(
+            name="root",
+            files=[File(name='we"ird&<>.txt', content="x", size=1)],
+            subdirectories=[],
+        )
+        root = ET.fromstring(XmlFormatter().format(directory))
+        assert root.find("file").get("name") == 'we"ird&<>.txt'
+
+    def test_indented_by_depth(self, nested_directory):
+        result = XmlFormatter().format(nested_directory)
+        assert '\n  <directory name="core">' in result
+        assert '\n    <directory name="utils">' in result
 
 
 class TestJsonFormatter:

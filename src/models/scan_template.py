@@ -7,7 +7,7 @@ from .scan_config import ScanConfig
 
 class ScanTemplate(BaseModel):
     config: ScanConfig
-    mode: Literal["default", "llm", "json"] = "default"
+    mode: Literal["default", "llm", "json", "xml"] = "default"
     output: Literal["stdout", "clipboard", "file"] = "stdout"
     out_file: str | None = None
     use_gitignore: bool = True

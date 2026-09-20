@@ -5,6 +5,7 @@ class OutputFormat(str, Enum):
     default = "default"
     llm = "llm"
     json = "json"
+    xml = "xml"
 
 
 class OutputDest(str, Enum):

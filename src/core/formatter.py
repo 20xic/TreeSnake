@@ -2,6 +2,7 @@ import io
 import json
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
+from xml.sax.saxutils import quoteattr
 
 from models import Directory, File
 
@@ -72,6 +73,67 @@ class LLMFormatter(IFormatter[str]):
 
         for subdir in directory.subdirectories:
             self._write(subdir, path, buffer)
+
+
+class XmlFormatter(IFormatter[str]):
+    """Nested XML tree for LLM consumption.
+
+    Directories nest as <directory> elements so the hierarchy is explicit
+    in the markup itself; every <file> additionally carries its full
+    `path` so a model can reference a file without re-walking the tree.
+    File content is wrapped in CDATA rather than entity-escaped: code
+    full of `&lt;`/`&amp;` is harder for a model to read than the raw
+    source, and CDATA keeps it verbatim. The only sequence CDATA can't
+    contain is its own terminator, so `]]>` inside content is split
+    across two CDATA sections.
+    """
+
+    INDENT = "  "
+
+    def format(self, directory: Directory) -> str:
+        buffer = io.StringIO()
+        buffer.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        self._write(directory, directory.name, 0, buffer, tag="project")
+        return buffer.getvalue()
+
+    def _write(
+        self,
+        directory: Directory,
+        path: str,
+        depth: int,
+        buffer: io.StringIO,
+        tag: str = "directory",
+    ) -> None:
+        indent = self.INDENT * depth
+        if not directory.files and not directory.subdirectories:
+            buffer.write(f"{indent}<{tag} name={quoteattr(directory.name)} />\n")
+            return
+
+        buffer.write(f"{indent}<{tag} name={quoteattr(directory.name)}>\n")
+        for file in directory.files:
+            self._write_file(file, f"{path}/{file.name}", depth + 1, buffer)
+        for subdir in directory.subdirectories:
+            self._write(subdir, f"{path}/{subdir.name}", depth + 1, buffer)
+        buffer.write(f"{indent}</{tag}>\n")
+
+    def _write_file(
+        self, file: File, path: str, depth: int, buffer: io.StringIO
+    ) -> None:
+        indent = self.INDENT * depth
+        attrs = (
+            f"name={quoteattr(file.name)} "
+            f"path={quoteattr(path)} "
+            f'size="{file.size}"'
+        )
+        if not file.content:
+            buffer.write(f"{indent}<file {attrs} />\n")
+            return
+
+        buffer.write(f"{indent}<file {attrs}><![CDATA[\n")
+        buffer.write(file.content.replace("]]>", "]]]]><![CDATA[>"))
+        if not file.content.endswith("\n"):
+            buffer.write("\n")
+        buffer.write(f"]]></file>\n")
 
 
 class JsonFormatter(IFormatter[dict]):
