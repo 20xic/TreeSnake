@@ -1,3 +1,4 @@
+import sys
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -21,8 +22,13 @@ class TestWindowsClipboard:
         mock_user32.OpenClipboard.return_value = True
         mock_user32.SetClipboardData.return_value = 0x1000
 
+        # ctypes.windll и ctypes.wintypes существуют только на Windows —
+        # создаём их как моки, чтобы тесты шли и на Linux/macOS.
+        mock_wintypes = MagicMock()
         with (
-            patch("ctypes.windll") as mock_windll,
+            patch("ctypes.windll", create=True) as mock_windll,
+            patch("ctypes.wintypes", mock_wintypes, create=True),
+            patch.dict(sys.modules, {"ctypes.wintypes": mock_wintypes}),
             patch("ctypes.memmove") as mock_memmove,
         ):
             mock_windll.kernel32 = mock_kernel32
