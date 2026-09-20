@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- `xml` output format (`--fmt xml` / `mode = "xml"`): nested
+  `<project>`/`<directory>`/`<file>` tree with full `path` on every file
+  and content kept verbatim in CDATA — makes the project hierarchy
+  explicit for LLM consumption
+
 ## [0.2.2] - 2026-06-14
 
 ### Added
