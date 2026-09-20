@@ -44,59 +44,55 @@ class BaseScanner(IScanner):
         if rules.max_depth is not None and depth > rules.max_depth:
             return Directory(name=name, files=[], subdirectories=[])
 
+        # Один проход scandir вместо listdir + isfile + isdir + getsize на каждый
+        # элемент: DirEntry отдаёт тип (и на Windows — stat) из результата
+        # листинга без дополнительных syscall'ов.
         try:
-            items = os.listdir(path)
+            with os.scandir(path) as it:
+                entries = list(it)
         except PermissionError:
             return Directory(name=name, files=[], subdirectories=[])
 
-        return Directory(
-            name=name,
-            files=self._collect_files(path, items, rules),
-            subdirectories=self._collect_dirs(path, items, rules, depth),
-        )
+        files: list[File] = []
+        subdirectories: list[Directory] = []
+        for entry in entries:
+            if entry.is_file():
+                file = self._collect_file(entry, rules)
+                if file is not None:
+                    files.append(file)
+            elif entry.is_dir():
+                subdir = self._collect_dir(entry, rules, depth)
+                if subdir is not None:
+                    subdirectories.append(subdir)
 
-    def _collect_files(
-        self, path: str, items: list[str], rules: CompiledRules
-    ) -> list[File]:
-        files = []
-        for item in items:
-            item_path = os.path.join(path, item)
-            if not os.path.isfile(item_path):
-                continue
-            if rules.exclude_files.matches(item):
-                continue
-            if rules.include_files.rules and not rules.include_files.matches(item):
-                continue
+        return Directory(name=name, files=files, subdirectories=subdirectories)
 
-            size = os.path.getsize(item_path)
+    def _collect_file(self, entry: os.DirEntry, rules: CompiledRules) -> File | None:
+        name = entry.name
+        if rules.exclude_files.matches(name):
+            return None
+        if rules.include_files.rules and not rules.include_files.matches(name):
+            return None
 
-            if rules.exclude_content_files.matches(item):
-                files.append(File(name=item, content=CONTENT_EXCLUDED, size=size))
-            elif rules.max_file_size is not None and size > rules.max_file_size:
-                files.append(
-                    File(name=item, content=_too_large_placeholder(size), size=size)
-                )
-            else:
-                files.append(self._file_reader.read(item_path))
-        return files
+        size = entry.stat().st_size
 
-    def _collect_dirs(
-        self, path: str, items: list[str], rules: CompiledRules, depth: int
-    ) -> list[Directory]:
-        subdirectories = []
-        for item in items:
-            item_path = os.path.join(path, item)
-            if not os.path.isdir(item_path):
-                continue
-            if rules.exclude_dirs.matches(item):
-                continue
-            if rules.include_dirs.rules and not rules.include_dirs.matches(item):
-                continue
-            if rules.exclude_content_dirs.matches(item):
-                subdirectories.append(Directory(name=item, files=[], subdirectories=[]))
-            else:
-                subdirectories.append(self._scan_recursive(item_path, rules, depth + 1))
-        return subdirectories
+        if rules.exclude_content_files.matches(name):
+            return File(name=name, content=CONTENT_EXCLUDED, size=size)
+        if rules.max_file_size is not None and size > rules.max_file_size:
+            return File(name=name, content=_too_large_placeholder(size), size=size)
+        return self._file_reader.read(entry.path, size)
+
+    def _collect_dir(
+        self, entry: os.DirEntry, rules: CompiledRules, depth: int
+    ) -> Directory | None:
+        name = entry.name
+        if rules.exclude_dirs.matches(name):
+            return None
+        if rules.include_dirs.rules and not rules.include_dirs.matches(name):
+            return None
+        if rules.exclude_content_dirs.matches(name):
+            return Directory(name=name, files=[], subdirectories=[])
+        return self._scan_recursive(entry.path, rules, depth + 1)
 
     def _count(self, directory: Directory) -> tuple[int, int]:
         file_count = len(directory.files)
